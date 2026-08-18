@@ -1,0 +1,4 @@
+.env
+server.log
+node_modules/
+public/uploads/
