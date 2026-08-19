@@ -51,7 +51,7 @@ async function getDossierLocation(dossierId) {
     armoire: r.code_armoire,
     boite: r.code_boite,
     dossier: r.titre,
-    chemin_complet: `${r.organisation_nom} > ${r.salle_nom} > ${r.code_armoire} > ${r.code_boite} > ${r.titre}`,
+    chemin_complet: `${r.salle_nom} > ${r.armoire_nom || r.code_armoire} > ${r.code_boite} > ${r.titre}`,
     reference: r.reference
   };
 }

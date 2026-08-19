@@ -66,7 +66,7 @@ async function ouvrirDetailsFichier(id) {
 
         <div class="emplacement-fichier">
           📍 ${escapeHierarchie(fichier.salle_nom || 'Salle non définie')}
-          — ${escapeHierarchie(fichier.code_armoire || 'Armoire non définie')}
+          — ${escapeHierarchie(fichier.armoire_nom || fichier.code_armoire || 'Armoire non définie')}
           ${fichier.emplacement_physique ? ' — ' + escapeHierarchie(fichier.emplacement_physique) : ''}
           — Boîte ${escapeHierarchie(fichier.code_boite || 'Non définie')}
           — Dossier ${escapeHtml(fichier.dossier_titre || 'Non défini')}
@@ -83,7 +83,6 @@ async function ouvrirDetailsFichier(id) {
           <p><strong>Nom original :</strong> ${escapeHierarchie(fichier.nom_original)}</p>
           <p><strong>Format :</strong> ${escapeHierarchie((fichier.extension || '').toUpperCase())}</p>
           <p><strong>Taille :</strong> ${formatSize(fichier.taille)}</p>
-          <p><strong>Date d'ajout :</strong> ${formatDate(fichier.date_upload)}</p>
           <p><strong>Auteur :</strong> ${escapeHierarchie(fichier.auteur || 'Non renseigné')}</p>
           <p><strong>Mots-clés :</strong> ${escapeHierarchie(fichier.mots_cles || 'Non renseignés')}</p>
           <p><strong>Description :</strong><br>${escapeHierarchie(fichier.description || 'Aucune description')}</p>
@@ -133,12 +132,6 @@ async function modifierFichierHierarchie(id) {
           <label>Auteur</label>
           <input id="hfAuteur" value="${escapeHierarchie(fichier.auteur || '')}">
         </div>
-
-        <div class="form-group">
-          <label>Date du document</label>
-          <input type="date" id="hfDateDocument"
-            value="${fichier.date_document ? String(fichier.date_document).slice(0, 10) : ''}">
-        </div>
       `,
       `
         <button class="btn btn-secondary" onclick="ouvrirDetailsFichier(${id})">Annuler</button>
@@ -163,8 +156,7 @@ async function enregistrerFichierHierarchie(id) {
       titre,
       description: document.getElementById('hfDescription').value,
       mots_cles: document.getElementById('hfMotsCles').value,
-      auteur: document.getElementById('hfAuteur').value,
-      date_document: document.getElementById('hfDateDocument').value || null
+      auteur: document.getElementById('hfAuteur').value
     });
 
     showToast('Fichier modifié avec succès.');

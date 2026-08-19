@@ -23,6 +23,7 @@ app.use('/api/dossiers', require('./routes/dossiers'));
 app.use('/api/fichiers', require('./routes/fichiers'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/recherche', require('./routes/recherche'));
+app.use('/api/sommaire', require('./routes/sommaire'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/audit', require('./routes/audit'));
 app.use('/api/notifications', require('./routes/notifications'));

@@ -84,6 +84,7 @@ router.get('/:id', auth, async (req, res) => {
 
         b.code_boite,
         a.code_armoire,
+        a.nom AS armoire_nom,
         a.emplacement_physique,
         s.nom AS salle_nom,
 

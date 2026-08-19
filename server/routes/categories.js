@@ -38,6 +38,14 @@ router.post('/', auth, roleCheck(80), async (req, res) => {
 
     const orgId = organisation_id || req.user.organisation_id;
 
+    const [doublons] = await db.query(
+      'SELECT id FROM categories WHERE LOWER(TRIM(nom)) = LOWER(TRIM(?))',
+      [nom]
+    );
+    if (doublons.length) {
+      return res.status(400).json({ error: 'Une catégorie avec ce nom existe déjà.' });
+    }
+
     const [result] = await db.query(
       'INSERT INTO categories (organisation_id, nom, description) VALUES (?, ?, ?)',
       [orgId, nom, description]
@@ -62,7 +70,17 @@ router.put('/:id', auth, roleCheck(80), async (req, res) => {
     const updates = [];
     const params = [];
 
-    if (nom) { updates.push('nom = ?'); params.push(nom); }
+    if (nom) {
+      const [doublons] = await db.query(
+        'SELECT id FROM categories WHERE LOWER(TRIM(nom)) = LOWER(TRIM(?)) AND id <> ?',
+        [nom, req.params.id]
+      );
+      if (doublons.length) {
+        return res.status(400).json({ error: 'Une catégorie avec ce nom existe déjà.' });
+      }
+      updates.push('nom = ?');
+      params.push(nom);
+    }
     if (description !== undefined) { updates.push('description = ?'); params.push(description); }
     if (actif !== undefined) { updates.push('actif = ?'); params.push(actif); }
 

@@ -60,16 +60,18 @@ router.get('/:id', auth, async (req, res) => {
 // ===== CRÉER UNE ARMOIRE =====
 router.post('/', auth, roleCheck(80), async (req, res) => {
   try {
-    const { salle_id, code_armoire, nom, description, emplacement_physique } = req.body;
+    const { salle_id, nom, description } = req.body;
 
-    if (!salle_id || !code_armoire || !nom) {
-      return res.status(400).json({ error: 'Salle, code et nom requis.' });
+    if (!salle_id || !nom) {
+      return res.status(400).json({ error: 'Salle et nom requis.' });
     }
 
+    const code_armoire = `ARM-${Date.now()}`;
+
     const [result] = await db.query(
-      `INSERT INTO armoires (salle_id, code_armoire, nom, description, emplacement_physique)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [salle_id, code_armoire, nom, description, emplacement_physique, capacite || 0]
+      `INSERT INTO armoires (salle_id, code_armoire, nom, description)
+       VALUES (?, ?, ?, ?)`,
+      [salle_id, code_armoire, nom, description || null]
     );
 
     await logAudit({

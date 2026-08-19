@@ -1,5 +1,5 @@
 /**
- * Archives App - Main Application (v4)
+ * Archives App - Main Application (v4.9)
  * - Suppression utilisateurs
  * - Restrictions par rôle (Consultation/Archiviste = lecture seule)
  */
@@ -82,7 +82,7 @@ function applySidebarPermissions() {
 function navigateTo(page, params = {}) {
   // Bloquer l'accès aux pages non autorisées
   const pageMinLevel = {
-    dashboard:0, salles:80, armoires:80, dossiers:0, fichiers:0, recherche:0,
+    dashboard:0, salles:80, armoires:80, dossiers:0, fichiers:0, recherche:0, sommaire:0,
     archives:80, boites:80, organisations:80, categories:80, audit:80, users:80
   };
   const level = currentUser ? currentUser.role_niveau : 0;
@@ -95,14 +95,14 @@ function navigateTo(page, params = {}) {
   document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.page === page));
   const titles = {
     dashboard:'Dashboard', archives:'Explorateur d\'Archives', organisations:'Organisations', salles:'Salles', armoires:'Armoires',
-    boites:'Boîtes', dossiers:'Dossiers', fichiers:'Fichiers', categories:'Catégories',
+    boites:'Boîtes', dossiers:'Dossiers', fichiers:'Fichiers', sommaire:'Sommaire', categories:'Catégories',
     organisations:'Organisations', recherche:'Recherche Avancée',
     audit:'Journal d\'Audit', users:'Utilisateurs'
   };
   document.getElementById('pageTitle').textContent = titles[page] || page;
   const loaders = {
     dashboard:loadDashboard, archives:loadArchives, organisations:loadOrganisations, salles:loadSalles, armoires:loadArmoires,
-    boites:loadBoites, dossiers:loadDossiers, fichiers:loadFichiers, categories:loadCategories,
+    boites:loadBoites, dossiers:loadDossiers, fichiers:loadFichiers, sommaire:loadSommaire, categories:loadCategories,
     organisations:loadOrganisations, recherche:loadRecherche,
     audit:loadAudit, users:loadUsers
   };
@@ -177,10 +177,7 @@ async function loadDashboard() {
                 </div>`;
               }).join('') : '<p style="text-align:center;color:var(--secondary)">Aucune donnée</p>'}
             </div>
-            <div style="margin-top:20px">
-              <h4 style="font-size:14px;margin-bottom:12px">🔒 Niveaux de Confidentialité</h4>
-              ${data.par_confidentialite.map(c => `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">${getConfidentialiteBadge(c.niveau_confidentialite)}<span style="font-size:13px">${c.count} dossiers</span></div>`).join('')}
-            </div>
+
           </div>
         </div>
       </div>
@@ -200,7 +197,7 @@ async function loadDashboard() {
                 <span style="font-size:20px">📂</span>
                 <div style="flex:1">
                   <div style="font-weight:600;font-size:13px">${escapeHtml(d.titre)}</div>
-                  <div style="font-size:11px;color:var(--secondary)">${d.reference} • ${escapeHtml(d.organisation_nom||'')} • ${formatDate(d.date_creation)}</div>
+                  <div style="font-size:11px;color:var(--secondary)">${formatDate(d.date_creation)}</div>
                 </div>
               </div>`).join('') : '<p style="text-align:center;color:var(--secondary)">Aucun document</p>'}
           </div>
@@ -240,8 +237,8 @@ async function exploreSalle(id,name) {
   archivesPath.push({type:'salle',id,name});
   const armoires=await API.getArmoires(id); updateBreadcrumb();
   document.getElementById('explorerGrid').innerHTML = armoires.length ? armoires.map(a => `
-    <div class="explorer-item" onclick="exploreArmoire(${a.id},'${escapeHtml(a.code_armoire)}')">
-      <div class="item-icon">🗄️</div><div class="item-name">${escapeHtml(a.code_armoire)} - ${escapeHtml(a.nom)}</div>
+    <div class="explorer-item" onclick="exploreArmoire(${a.id},'${escapeHtml(a.nom)}')">
+      <div class="item-icon">🗄️</div><div class="item-name">${escapeHtml(a.nom)}</div>
       <div class="item-count">${a.nb_boites||0} boîtes</div>
     </div>`).join('') : '<div class="empty-state"><div class="empty-icon">🗄️</div><h3>Aucune armoire</h3></div>';
 }
@@ -260,8 +257,7 @@ async function exploreBoite(id,code) {
   document.getElementById('explorerGrid').innerHTML = dossiers.length ? dossiers.map(d => `
     <div class="explorer-item" onclick="viewDossier(${d.id})">
       <div class="item-icon">📂</div><div class="item-name">${escapeHtml(d.titre)}</div>
-      <div class="item-count">${d.reference}</div>
-      <div style="margin-top:6px">${getConfidentialiteBadge(d.niveau_confidentialite)}</div>
+      <div class="item-count">${escapeHtml(d.titre)}</div>
     </div>`).join('') : '<div class="empty-state"><div class="empty-icon">📂</div><h3>Aucun dossier</h3></div>';
 }
 function updateBreadcrumb() {
@@ -343,49 +339,44 @@ async function loadArmoires() {
       <div style="display:flex;justify-content:space-between;margin-bottom:20px"><div></div>
         ${canModify()?'<button class="btn btn-primary" onclick="showAddArmoireModal()">+ Ajouter une armoire</button>':''}</div>
       <div class="card"><div class="card-body"><div class="table-container"><table>
-        <thead><tr><th>Code</th><th>Nom</th><th>Salle</th><th>Organisation</th><th>Emplacement</th><th>Boîtes</th>${canModify()?'<th>Actions</th>':''}</tr></thead>
+        <thead><tr><th>Nom</th><th>Salle</th><th>Boîtes</th>${canModify()?'<th>Actions</th>':''}</tr></thead>
         <tbody>${armoires.length ? armoires.map(a=>`<tr>
-          <td><strong>${escapeHtml(a.code_armoire)}</strong></td><td>${escapeHtml(a.nom)}</td><td>${escapeHtml(a.salle_nom)}</td>
-          <td>${escapeHtml(a.organisation_nom)}</td><td>${escapeHtml(a.emplacement_physique||'-')}</td><td>${a.nb_boites||0}</td>
+          <td><strong>${escapeHtml(a.nom)}</strong></td><td>${escapeHtml(a.salle_nom)}</td>
+          <td>${a.nb_boites||0}</td>
           ${canModify()?`<td class="actions">
             <button class="btn btn-sm btn-outline" onclick="viewArmoireContenu(${a.id})">👁️</button>
             <button class="btn btn-sm btn-outline" onclick="showEditArmoireModal(${a.id})">✏️</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteArmoire(${a.id},'${escapeHtml(a.code_armoire)}')">🗑️</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteArmoire(${a.id},'${escapeHtml(a.nom)}')">🗑️</button>
           </td>`:`<td><button class="btn btn-sm btn-outline" onclick="viewArmoireContenu(${a.id})">👁️</button></td>`}
-        </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;padding:40px">Aucune armoire</td></tr>'}</tbody>
+        </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;padding:40px">Aucune armoire</td></tr>'}</tbody>
       </table></div></div></div>`;
   } catch(e) { c.innerHTML=`<div class="empty-state"><p>${e.message}</p></div>`; }
 }
 async function showAddArmoireModal() {
   const salles=await API.getSalles();
   openModal('Ajouter une armoire', `
-    <div class="form-group"><label>Salle *</label><select id="armSalle"><option value="">Sélectionner...</option>${salles.map(s=>`<option value="${s.id}">${escapeHtml(s.organisation_nom)} - ${escapeHtml(s.nom)}</option>`).join('')}</select></div>
-    <div class="form-group"><label>Code armoire *</label><input id="armCode" placeholder="A01"></div>
-    <div class="form-group"><label>Nom *</label><input id="armNom" placeholder="Armoire A01"></div>
+    <div class="form-group"><label>Salle *</label><select id="armSalle"><option value="">Sélectionner...</option>${salles.map(s=>`<option value="${s.id}">${escapeHtml(s.nom)}</option>`).join('')}</select></div>
+    <div class="form-group"><label>Nom *</label><input id="armNom" placeholder="Armoire principale"></div>
     <div class="form-group"><label>Description</label><textarea id="armDesc"></textarea></div>
-    <div class="form-group"><label>Emplacement physique</label><input id="armEmpl" placeholder="Mur nord"></div>
   `, `<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitAddArmoire()">Créer</button>`);
 }
 async function submitAddArmoire() {
   const salle_id=document.getElementById('armSalle').value;
-  const code_armoire=document.getElementById('armCode').value.trim();
   const nom=document.getElementById('armNom').value.trim();
-  if(!salle_id||!code_armoire||!nom){showToast('Salle, code et nom requis','error');return;}
-  try { await API.createArmoire({salle_id,code_armoire,nom,description:document.getElementById('armDesc').value,emplacement_physique:document.getElementById('armEmpl').value}); closeModal(); showToast('Armoire créée'); loadArmoires(); }
+  if(!salle_id||!nom){showToast('Salle et nom requis','error');return;}
+  try { await API.createArmoire({salle_id,nom,description:document.getElementById('armDesc').value}); closeModal(); showToast('Armoire créée'); loadArmoires(); }
   catch(e) { showToast(e.message,'error'); }
 }
 async function showEditArmoireModal(id) {
   const [armoire,salles]=await Promise.all([API.getArmoire(id),API.getSalles()]);
   openModal('Modifier l\'armoire', `
-    <div class="form-group"><label>Salle</label><select id="armSalle">${salles.map(s=>`<option value="${s.id}" ${s.id===armoire.salle_id?'selected':''}>${escapeHtml(s.organisation_nom)} - ${escapeHtml(s.nom)}</option>`).join('')}</select></div>
-    <div class="form-group"><label>Code</label><input id="armCode" value="${escapeHtml(armoire.code_armoire)}"></div>
+    <div class="form-group"><label>Salle</label><select id="armSalle">${salles.map(s=>`<option value="${s.id}" ${s.id===armoire.salle_id?'selected':''}>${escapeHtml(s.nom)}</option>`).join('')}</select></div>
     <div class="form-group"><label>Nom</label><input id="armNom" value="${escapeHtml(armoire.nom)}"></div>
     <div class="form-group"><label>Description</label><textarea id="armDesc">${escapeHtml(armoire.description||'')}</textarea></div>
-    <div class="form-group"><label>Emplacement</label><input id="armEmpl" value="${escapeHtml(armoire.emplacement_physique||'')}"></div>
   `, `<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitEditArmoire(${id})">Enregistrer</button>`);
 }
 async function submitEditArmoire(id) {
-  try { await API.updateArmoire(id,{code_armoire:document.getElementById('armCode').value,nom:document.getElementById('armNom').value,description:document.getElementById('armDesc').value,emplacement_physique:document.getElementById('armEmpl').value}); closeModal(); showToast('Armoire modifiée'); loadArmoires(); }
+  try { await API.updateArmoire(id,{nom:document.getElementById('armNom').value,description:document.getElementById('armDesc').value}); closeModal(); showToast('Armoire modifiée'); loadArmoires(); }
   catch(e) { showToast(e.message,'error'); }
 }
 async function deleteArmoire(id,code) {
@@ -394,8 +385,7 @@ async function deleteArmoire(id,code) {
   catch(e) { showToast(e.message,'error'); }
 }
 async function viewArmoireContenu(id) {
-  navigateTo('archives');
-  setTimeout(async()=>{const a=await API.getArmoire(id);await exploreSalle(a.salle_id,a.salle_nom);await exploreArmoire(id,a.code_armoire);},200);
+  navigateTo('boites');
 }
 
 // ===== BOÎTES =====
@@ -407,24 +397,24 @@ async function loadBoites() {
       <div style="display:flex;justify-content:space-between;margin-bottom:20px"><div></div>
         ${canModify()?'<button class="btn btn-primary" onclick="showAddBoiteModal()">+ Ajouter une boîte</button>':''}</div>
       <div class="card"><div class="card-body"><div class="table-container"><table>
-        <thead><tr><th>Code</th><th>Nom</th><th>Armoire</th><th>Salle</th><th>Organisation</th><th>Dossiers</th>${canModify()?'<th>Actions</th>':''}</tr></thead>
+        <thead><tr><th>Code</th><th>Nom</th><th>Armoire</th><th>Salle</th><th>Dossiers</th>${canModify()?'<th>Actions</th>':''}</tr></thead>
         <tbody>${boites.length ? boites.map(b=>`<tr>
-          <td><strong>${escapeHtml(b.code_boite)}</strong></td><td>${escapeHtml(b.nom)}</td><td>${escapeHtml(b.code_armoire)}</td>
-          <td>${escapeHtml(b.salle_nom)}</td><td>${escapeHtml(b.organisation_nom)}</td><td>${b.nb_dossiers||0}</td>
+          <td><strong>${escapeHtml(b.code_boite)}</strong></td><td>${escapeHtml(b.nom)}</td><td>${escapeHtml(b.armoire_nom||'')}</td>
+          <td>${escapeHtml(b.salle_nom)}</td><td>${b.nb_dossiers||0}</td>
           ${canModify()?`<td class="actions">
             <button class="btn btn-sm btn-outline" onclick="viewBoiteDossiers(${b.id})">👁️</button>
             <button class="btn btn-sm btn-outline" onclick="showEditBoiteModal(${b.id})">✏️</button>
             <button class="btn btn-sm btn-info" onclick="showMoveBoiteModal(${b.id})">↗️</button>
             <button class="btn btn-sm btn-danger" onclick="deleteBoite(${b.id},'${escapeHtml(b.code_boite)}')">🗑️</button>
           </td>`:`<td><button class="btn btn-sm btn-outline" onclick="viewBoiteDossiers(${b.id})">👁️</button></td>`}
-        </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;padding:40px">Aucune boîte</td></tr>'}</tbody>
+        </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:40px">Aucune boîte</td></tr>'}</tbody>
       </table></div></div></div>`;
   } catch(e) { c.innerHTML=`<div class="empty-state"><p>${e.message}</p></div>`; }
 }
 async function showAddBoiteModal() {
   const armoires=await API.getArmoires();
   openModal('Ajouter une boîte', `
-    <div class="form-group"><label>Armoire *</label><select id="boiteArmoire"><option value="">Sélectionner...</option>${armoires.map(a=>`<option value="${a.id}">${escapeHtml(a.organisation_nom)} - ${escapeHtml(a.salle_nom)} - ${escapeHtml(a.code_armoire)}</option>`).join('')}</select></div>
+    <div class="form-group"><label>Armoire *</label><select id="boiteArmoire"><option value="">Sélectionner...</option>${armoires.map(a=>`<option value="${a.id}">${escapeHtml(a.salle_nom)} › ${escapeHtml(a.nom)}</option>`).join('')}</select></div>
     <div class="form-group"><label>Code boîte *</label><input id="boiteCode" placeholder="B001"></div>
     <div class="form-group"><label>Nom *</label><input id="boiteNom" placeholder="Boîte B001"></div>
     <div class="form-group"><label>Description</label><textarea id="boiteDesc"></textarea></div>
@@ -453,7 +443,7 @@ async function submitEditBoite(id) {
 async function showMoveBoiteModal(id) {
   const armoires=await API.getArmoires();
   openModal('Déplacer la boîte', `
-    <div class="form-group"><label>Nouvelle armoire</label><select id="moveBoiteArmoire">${armoires.map(a=>`<option value="${a.id}">${escapeHtml(a.code_armoire)} - ${escapeHtml(a.nom)} (${escapeHtml(a.salle_nom)})</option>`).join('')}</select></div>
+    <div class="form-group"><label>Nouvelle armoire</label><select id="moveBoiteArmoire">${armoires.map(a=>`<option value="${a.id}">${escapeHtml(a.nom)} (${escapeHtml(a.salle_nom)})</option>`).join('')}</select></div>
   `, `<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitMoveBoite(${id})">Déplacer</button>`);
 }
 async function submitMoveBoite(id) {
@@ -480,9 +470,8 @@ async function loadDossiers(params='') {
       <div style="display:flex;justify-content:space-between;margin-bottom:20px"><div></div>
         ${canModify()?'<button class="btn btn-primary" onclick="showAddDossierModal()">+ Nouveau dossier</button>':''}</div>
       <div class="filters-bar" id="dossierFilters">
-        <div class="filter-item"><label>Recherche</label><input type="text" id="filterSearch" placeholder="Titre, ref..." onkeyup="filterDossiers()"></div>
+        <div class="filter-item"><label>Recherche</label><input type="text" id="filterSearch" placeholder="Titre..." onkeyup="filterDossiers()"></div>
         <div class="filter-item"><label>Catégorie</label><select id="filterCat" onchange="filterDossiers()"><option value="">Toutes</option>${categories.map(cat=>`<option value="${cat.id}">${escapeHtml(cat.nom)}</option>`).join('')}</select></div>
-        <div class="filter-item"><label>Confidentialité</label><select id="filterConf" onchange="filterDossiers()"><option value="">Tous</option><option>Public</option><option>Interne</option><option>Confidentiel</option><option>Secret</option><option>Très Secret</option></select></div>
       </div>
       <div id="dossiersListArea"></div>`;
     renderDossiersList(dossiers);
@@ -493,21 +482,18 @@ function renderDossiersList(dossiers) {
   const area=document.getElementById('dossiersListArea'); if(!area)return;
   const actionsHeader = canModify() ? '<th style="width:120px">Actions</th>' : '';
   area.innerHTML=`<div class="card"><div class="card-body"><div class="table-container"><table>
-    <thead><tr><th>Référence</th><th>Titre</th><th>Catégorie</th><th>Organisation</th><th>Localisation</th><th>Confidentialité</th><th>Date</th>${actionsHeader}</tr></thead>
+    <thead><tr><th>Titre</th><th>Catégorie</th><th>Localisation</th><th>Date</th>${actionsHeader}</tr></thead>
     <tbody>${dossiers.length ? dossiers.map(d=>`<tr>
-      <td style="white-space:nowrap"><strong style="color:var(--primary)">${d.reference}</strong></td>
       <td>${escapeHtml(d.titre)}</td>
       <td style="white-space:nowrap">${escapeHtml(d.categorie_nom||'-')}</td>
-      <td style="white-space:nowrap">${escapeHtml(d.organisation_nom)}</td>
-      <td style="white-space:nowrap"><small>${escapeHtml(d.code_armoire)} › ${escapeHtml(d.code_boite)}</small></td>
-      <td style="white-space:nowrap">${getConfidentialiteBadge(d.niveau_confidentialite)}</td>
+      <td style="white-space:nowrap"><small>${escapeHtml(d.salle_nom)} › ${escapeHtml(d.armoire_nom||'')} › ${escapeHtml(d.boite_nom||d.code_boite)}</small></td>
       <td style="white-space:nowrap">${formatDate(d.date_creation)}</td>
       ${canModify()?`<td style="white-space:nowrap">
         <button class="btn btn-sm btn-outline" onclick="viewDossier(${d.id})" title="Voir">👁️</button>
         <button class="btn btn-sm btn-outline" onclick="showEditDossierModal(${d.id})" title="Modifier">✏️</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteDossier(${d.id},'${d.reference}')" title="Supprimer">🗑️</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteDossier(${d.id},'${escapeHtml(d.titre)}')" title="Supprimer">🗑️</button>
       </td>`:`<td><button class="btn btn-sm btn-outline" onclick="viewDossier(${d.id})" title="Voir">👁️</button></td>`}
-    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;padding:40px">Aucun dossier</td></tr>'}</tbody>
+    </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:40px">Aucun dossier</td></tr>'}</tbody>
   </table></div></div></div>`;
 }
 
@@ -515,10 +501,8 @@ async function filterDossiers() {
   const params=[];
   const search=document.getElementById('filterSearch')?.value;
   const cat=document.getElementById('filterCat')?.value;
-  const conf=document.getElementById('filterConf')?.value;
   if(search) params.push(`search=${encodeURIComponent(search)}`);
   if(cat) params.push(`categorie_id=${cat}`);
-  if(conf) params.push(`niveau_confidentialite=${encodeURIComponent(conf)}`);
   const dossiers=await API.getDossiers(params.join('&'));
   renderDossiersList(dossiers);
 }
@@ -531,12 +515,12 @@ async function viewDossier(id) {
     const editBtns = canModify() ? `
       <div style="display:flex;gap:6px">
         <button class="btn btn-sm btn-outline" onclick="showEditDossierModal(${id})">✏️ Modifier</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteDossier(${id},'${dossier.reference}')">🗑️ Supprimer</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteDossier(${id},'${escapeHtml(dossier.titre)}')">🗑️ Supprimer</button>
       </div>` : '';
     c.innerHTML = `
       <div class="breadcrumb">
         <a href="#" onclick="event.preventDefault();navigateTo('dossiers')">Dossiers</a>
-        <span class="separator">›</span><span class="current">${dossier.reference}</span>
+        <span class="separator">›</span><span class="current">${escapeHtml(dossier.titre)}</span>
       </div>
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
         <div>
@@ -546,11 +530,8 @@ async function viewDossier(id) {
               ${editBtns}
             </div>
             <div class="card-body">
-              ${dossier.sous_titre?`<p style="font-size:15px;color:var(--secondary);margin-bottom:8px">${escapeHtml(dossier.sous_titre)}</p>`:''}
               ${dossier.description?`<p style="margin-bottom:16px">${escapeHtml(dossier.description)}</p>`:''}
               <div style="display:flex;gap:12px;flex-wrap:wrap">
-                <span><strong>Référence:</strong> ${dossier.reference}</span>
-                ${getConfidentialiteBadge(dossier.niveau_confidentialite)}
                 <span>📅 ${formatDate(dossier.date_creation)}</span>
               </div>
             </div>
@@ -566,7 +547,7 @@ async function viewDossier(id) {
                   <span class="file-icon">${getFileIcon(f.extension)}</span>
                   <div class="file-info" style="cursor:pointer" onclick="ouvrirDetailsFichier(${f.id})" title="Voir les détails du fichier">
                     <div class="file-name">${escapeHtml(f.titre)} <small style="color:var(--secondary)">v${f.version}</small></div>
-                    <div class="file-meta">${escapeHtml(f.nom_original)} • ${formatSize(f.taille)} • ${formatDate(f.date_upload)}</div>
+                    <div class="file-meta">${escapeHtml(f.nom_original)} • ${formatSize(f.taille)}</div>
                   </div>
                   <div style="display:flex;gap:4px">
                     ${['pdf','jpg','jpeg','png'].includes(f.extension)?`<button class="btn btn-sm btn-outline" onclick="previewFichier(${f.id})" title="Prévisualiser">👁️</button>`:''}
@@ -582,14 +563,13 @@ async function viewDossier(id) {
             <div class="card-header"><h3>📍 Localisation</h3></div>
             <div class="card-body">
               <div class="location-path" style="margin-bottom:12px">
-                <span class="org-badge">${escapeHtml(dossier.organisation_nom)}</span>
-                <span class="separator">›</span><span>${escapeHtml(dossier.salle_nom)}</span>
-                <span class="separator">›</span><span>${escapeHtml(dossier.code_armoire)}</span>
+                <span>${escapeHtml(dossier.salle_nom)}</span>
+                <span class="separator">›</span><span>${escapeHtml(dossier.armoire_nom||'')}</span>
                 <span class="separator">›</span><span>${escapeHtml(dossier.code_boite)}</span>
                 <span class="separator">›</span><span class="current">${escapeHtml(dossier.titre)}</span>
               </div>
               <p style="font-size:12px;color:var(--secondary)">Emplacement complet</p>
-              <p style="font-size:13px;font-weight:600">${escapeHtml(dossier.localisation?.chemin_complet||'')}</p>
+              <p style="font-size:13px;font-weight:600">${escapeHtml(dossier.salle_nom)} › ${escapeHtml(dossier.armoire_nom||'')} › ${escapeHtml(dossier.code_boite)} › ${escapeHtml(dossier.titre)}</p>
             </div>
           </div>
         </div>
@@ -599,75 +579,52 @@ async function viewDossier(id) {
 
 // ===== ADD DOSSIER =====
 async function showAddDossierModal() {
-  const [boites,categories,orgs]=await Promise.all([API.getBoites(),API.getCategories(),API.getOrganisations()]);
-  const orgId=currentUser.organisation_id;
-  const filteredBoites = orgId ? boites.filter(b => b.organisation_id === orgId) : boites;
+  const [boites,categories]=await Promise.all([API.getBoites(),API.getCategories()]);
   openModal('Nouveau dossier', `
-    <div class="form-group"><label>Organisation *</label>
-      <select id="dossOrg" onchange="onDossierOrgChange()" ${currentUser.role_nom!=='Super Admin'?'disabled':''}>
-        <option value="">Sélectionner...</option>
-        ${orgs.map(o=>`<option value="${o.id}" ${o.id===orgId?'selected':''}>${escapeHtml(o.nom)}</option>`).join('')}
-      </select></div>
     <div class="form-group"><label>Boîte *</label><select id="dossBoite">
-      <option value="">Sélectionner d'abord une organisation</option>
-      ${filteredBoites.map(b=>`<option value="${b.id}" data-org="${b.organisation_id}">${escapeHtml(b.organisation_nom)} › ${escapeHtml(b.salle_nom)} › ${escapeHtml(b.code_armoire)} › ${escapeHtml(b.code_boite)}</option>`).join('')}
+      <option value="">Sélectionner une boîte</option>
+      ${boites.map(b=>`<option value="${b.id}">${escapeHtml(b.salle_nom)} › ${escapeHtml(b.armoire_nom||'')} › ${escapeHtml(b.nom)}</option>`).join('')}
     </select></div>
     <div class="form-group"><label>Titre *</label><input id="dossTitre" placeholder="Convention OPA"></div>
-    <div class="form-group"><label>Sous-titre</label><input id="dossSousTitre" placeholder="Convention Internationale"></div>
     <div class="form-group"><label>Description</label><textarea id="dossDesc"></textarea></div>
     <div class="form-group"><label>Catégorie</label><select id="dossCat">
       <option value="">Aucune</option>
-      ${categories.map(cat=>`<option value="${cat.id}">${escapeHtml(cat.organisation_nom||'Général')} - ${escapeHtml(cat.nom)}</option>`).join('')}
+      ${categories.map(cat=>`<option value="${cat.id}">${escapeHtml(cat.nom)}</option>`).join('')}
     </select></div>
-    <div class="form-group"><label>Niveau de confidentialité</label>
-      <select id="dossConf"><option>Public</option><option selected>Interne</option><option>Confidentiel</option><option>Secret</option><option>Très Secret</option></select></div>
   `, `<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitAddDossier()">Créer</button>`);
-  window._allBoites = boites;
-  if (orgId) onDossierOrgChange();
-}
-async function onDossierOrgChange() {
-  const orgId = document.getElementById('dossOrg').value;
-  const boiteSelect = document.getElementById('dossBoite');
-  if (!orgId) { boiteSelect.innerHTML = '<option value="">Sélectionner d\'abord une organisation</option>'; return; }
-  const filtered = (window._allBoites || []).filter(b => b.organisation_id == orgId);
-  if (filtered.length) {
-    boiteSelect.innerHTML = filtered.map(b => `<option value="${b.id}">${escapeHtml(b.salle_nom)} › ${escapeHtml(b.code_armoire)} › ${escapeHtml(b.code_boite)} - ${escapeHtml(b.nom)}</option>`).join('');
-  } else { boiteSelect.innerHTML = '<option value="">Aucune boîte pour cette organisation</option>'; }
 }
 async function submitAddDossier() {
-  const orgId=document.getElementById('dossOrg').value||currentUser.organisation_id;
   const boite_id=document.getElementById('dossBoite').value;
   const titre=document.getElementById('dossTitre').value.trim();
-  if(!orgId){showToast('Organisation requise','error');return;}
   if(!boite_id){showToast('Boîte requise','error');return;}
   if(!titre){showToast('Titre requis','error');return;}
   try {
+    let organisation_id = currentUser && currentUser.organisation_id ? currentUser.organisation_id : null;
+    if(!organisation_id){
+      const orgs = await API.getOrganisations();
+      organisation_id = orgs && orgs[0] ? orgs[0].id : 1;
+    }
     const result=await API.createDossier({
-      organisation_id:parseInt(orgId), boite_id:parseInt(boite_id), titre,
-      sous_titre:document.getElementById('dossSousTitre').value,
+      organisation_id:parseInt(organisation_id), boite_id:parseInt(boite_id), titre,
       description:document.getElementById('dossDesc').value,
-      categorie_id:document.getElementById('dossCat').value||null,
-      niveau_confidentialite:document.getElementById('dossConf').value
+      categorie_id:document.getElementById('dossCat').value||null
     });
-    closeModal(); showToast(`Dossier créé: ${result.reference}`); loadDossiers();
+    closeModal(); showToast('Dossier créé'); loadDossiers();
   } catch(e) { showToast(e.message,'error'); }
 }
 async function showEditDossierModal(id) {
   const [dossier,categories]=await Promise.all([API.getDossier(id),API.getCategories()]);
   openModal('Modifier le dossier', `
     <div class="form-group"><label>Titre</label><input id="dossTitre" value="${escapeHtml(dossier.titre)}"></div>
-    <div class="form-group"><label>Sous-titre</label><input id="dossSousTitre" value="${escapeHtml(dossier.sous_titre||'')}"></div>
     <div class="form-group"><label>Description</label><textarea id="dossDesc">${escapeHtml(dossier.description||'')}</textarea></div>
     <div class="form-group"><label>Catégorie</label><select id="dossCat">
       <option value="">Aucune</option>
       ${categories.map(c=>`<option value="${c.id}" ${c.id===dossier.categorie_id?'selected':''}>${escapeHtml(c.nom)}</option>`).join('')}
     </select></div>
-    <div class="form-group"><label>Confidentialité</label>
-      <select id="dossConf">${['Public','Interne','Confidentiel','Secret','Très Secret'].map(n=>`<option ${n===dossier.niveau_confidentialite?'selected':''}>${n}</option>`).join('')}</select></div>
   `, `<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitEditDossier(${id})">Enregistrer</button>`);
 }
 async function submitEditDossier(id) {
-  try { await API.updateDossier(id,{titre:document.getElementById('dossTitre').value,sous_titre:document.getElementById('dossSousTitre').value,description:document.getElementById('dossDesc').value,categorie_id:document.getElementById('dossCat').value||null,niveau_confidentialite:document.getElementById('dossConf').value}); closeModal(); showToast('Dossier modifié'); viewDossier(id); }
+  try { await API.updateDossier(id,{titre:document.getElementById('dossTitre').value,description:document.getElementById('dossDesc').value,categorie_id:document.getElementById('dossCat').value||null}); closeModal(); showToast('Dossier modifié'); viewDossier(id); }
   catch(e) { showToast(e.message,'error'); }
 }
 async function deleteDossier(id,ref) {
@@ -686,7 +643,7 @@ async function loadFichiers() {
     for(const d of topDossiers) {
       try {
         const fichiers=await API.getFichiersDossier(d.id);
-        fichiers.forEach(f => { f.dossier_reference=d.reference; f.dossier_titre=d.titre; f.dossier_id=d.id; });
+        fichiers.forEach(f => { f.dossier_titre=d.titre; f.dossier_id=d.id; });
         allFichiers=allFichiers.concat(fichiers);
       } catch{}
     }
@@ -696,7 +653,7 @@ async function loadFichiers() {
         ${canModify()?`<div style="display:flex;gap:8px;align-items:center">
           <select id="uploadDossierSelect" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;min-width:250px">
             <option value="">-- Sélectionner un dossier --</option>
-            ${dossiers.map(d=>`<option value="${d.id}">${d.reference} - ${escapeHtml(d.titre)}</option>`).join('')}
+            ${dossiers.map(d=>`<option value="${d.id}">${escapeHtml(d.salle_nom||'')} › ${escapeHtml(d.armoire_nom||'')} › ${escapeHtml(d.titre)}</option>`).join('')}
           </select>
           <button class="btn btn-primary" onclick="showUploadToDossier()">📤 Ajouter un fichier</button>
           <button class="btn btn-info" onclick="showMultiUploadToDossier()">📎 Multi-upload</button>
@@ -710,8 +667,8 @@ async function loadFichiers() {
             <div class="file-info" style="cursor:pointer" onclick="ouvrirDetailsFichier(${f.id})" title="Voir les détails du fichier">
               <div class="file-name">${escapeHtml(f.titre)} <small style="color:var(--secondary)">v${f.version}</small></div>
               <div class="file-meta">
-                📂 ${escapeHtml(f.dossier_reference)} - ${escapeHtml(f.dossier_titre)} •
-                ${escapeHtml(f.nom_original)} • ${formatSize(f.taille)} • ${formatDate(f.date_upload)}
+                📂 ${escapeHtml(f.dossier_titre)} •
+                ${escapeHtml(f.nom_original)} • ${formatSize(f.taille)}
               </div>
             </div>
             <div style="display:flex;gap:4px">
@@ -737,7 +694,6 @@ async function showUploadToDossier() {
     <div class="form-group"><label>Titre</label><input id="uploadTitre" placeholder="Titre du fichier"></div>
     <div class="form-group"><label>Description</label><textarea id="uploadDesc"></textarea></div>
     <div class="form-group"><label>Mots-clés</label><input id="uploadKeywords" placeholder="mot1, mot2, mot3"></div>
-    <div class="form-group"><label>Date du document</label><input type="date" id="uploadDateDoc"></div>
   `, `<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitUpload(${dossierId})">Upload</button>`);
 }
 
@@ -757,7 +713,6 @@ async function submitUpload(dossierId) {
   formData.append('titre',document.getElementById('uploadTitre').value||fileInput.files[0].name);
   formData.append('description',document.getElementById('uploadDesc').value);
   formData.append('mots_cles',document.getElementById('uploadKeywords').value);
-  formData.append('date_document',document.getElementById('uploadDateDoc').value);
   try { await API.uploadFichier(dossierId,formData); closeModal(); showToast('Fichier uploadé'); loadFichiers(); }
   catch(e) { showToast(e.message,'error'); }
 }
@@ -888,10 +843,69 @@ async function deleteSousCategorie(id,catId) {
   catch(e) { showToast(e.message,'error'); }
 }
 
+// ===== SOMMAIRE =====
+async function loadSommaire() {
+  const c = document.getElementById('contentArea');
+  c.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const rows = await API.getSommaire();
+    window._sommaireRows = rows;
+    c.innerHTML = `
+      <p style="margin-bottom:12px;color:var(--secondary);font-size:13px">Tous les emplacements physiques : salles, armoires, boîtes, dossiers et fichiers.</p>
+      <div class="filters-bar" style="margin-bottom:16px">
+        <div class="filter-item" style="flex:1">
+          <label>Recherche simple</label>
+          <input type="text" id="sommaireSearch" placeholder="Tapez un nom… les lignes d'emplacement correspondantes s'affichent" oninput="filtrerSommaire()">
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3 id="sommaireCount">📋 ${rows.length} emplacement(s)</h3></div>
+        <div class="card-body"><div class="table-container">
+          <table>
+            <thead><tr><th style="width:110px">Type</th><th>Emplacement physique</th></tr></thead>
+            <tbody id="sommaireBody"></tbody>
+          </table>
+        </div></div>
+      </div>`;
+    filtrerSommaire();
+  } catch (e) {
+    c.innerHTML = `<div class="empty-state"><p>${e.message}</p></div>`;
+  }
+}
+function filtrerSommaire() {
+  const q = (document.getElementById('sommaireSearch')?.value || '').trim().toLowerCase();
+  const all = window._sommaireRows || [];
+  const filtered = q
+    ? all.filter(r =>
+        (r.titre || '').toLowerCase().includes(q) ||
+        (r.emplacement || '').toLowerCase().includes(q) ||
+        (r.nom_original || '').toLowerCase().includes(q)
+      )
+    : all;
+  const body = document.getElementById('sommaireBody');
+  const count = document.getElementById('sommaireCount');
+  if (count) count.textContent = `📋 ${filtered.length} emplacement(s)`;
+  if (!body) return;
+  if (!filtered.length) {
+    body.innerHTML = '<tr><td colspan="2" style="text-align:center;padding:30px">Aucun emplacement trouvé</td></tr>';
+    return;
+  }
+  body.innerHTML = filtered.map(r => {
+    let action = '';
+    if (r.type === 'Fichier') action = `ouvrirDetailsFichier(${r.id})`;
+    else if (r.type === 'Dossier') action = `viewDossier(${r.dossier_id || r.id})`;
+    const click = action ? ` style="cursor:pointer" onclick="${action}"` : '';
+    return `<tr${click}>
+      <td><span class="badge badge-info">${escapeHtml(r.type)}</span></td>
+      <td>${escapeHtml(r.emplacement)}</td>
+    </tr>`;
+  }).join('');
+}
+
 // ===== RECHERCHE AVANCÉE =====
 async function loadRecherche() {
   const c=document.getElementById('contentArea');
-  const [categories,orgs]=await Promise.all([API.getCategories(),API.getOrganisations()]);
+  const [categories]=await Promise.all([API.getCategories()]);
   c.innerHTML = `
     <div class="card" id="searchCard">
       <div class="card-header">
@@ -900,19 +914,11 @@ async function loadRecherche() {
       </div>
       <div class="card-body">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
-          <div class="form-group"><label>Référence</label><input id="srcRef" placeholder="ARC-2026-..."></div>
-          <div class="form-group"><label>Titre</label><input id="srcTitre"></div>
-          <div class="form-group"><label>Sous-titre</label><input id="srcSousTitre"></div>
+          <div class="form-group"><label>Titre / nom de fichier</label><input id="srcTitre" placeholder="Nom du dossier ou du fichier"></div>
           <div class="form-group"><label>Description</label><input id="srcDesc"></div>
           <div class="form-group"><label>Mot-clé</label><input id="srcMotCle"></div>
           <div class="form-group"><label>Catégorie</label><select id="srcCat">
             <option value="">Toutes</option>${categories.map(cat=>`<option value="${cat.id}">${escapeHtml(cat.nom)}</option>`).join('')}
-          </select></div>
-          <div class="form-group"><label>Organisation</label><select id="srcOrg">
-            <option value="">Toutes</option>${orgs.map(o=>`<option value="${o.id}">${escapeHtml(o.nom)}</option>`).join('')}
-          </select></div>
-          <div class="form-group"><label>Confidentialité</label><select id="srcConf">
-            <option value="">Tous</option><option>Public</option><option>Interne</option><option>Confidentiel</option><option>Secret</option><option>Très Secret</option>
           </select></div>
           <div class="form-group"><label>Date de dépôt</label><input type="date" id="srcDateDepot"></div>
         </div>
@@ -932,7 +938,7 @@ function clearSearchForm() {
 }
 async function executeRecherche() {
   const params=[];
-  const fields={srcRef:'reference',srcTitre:'titre',srcSousTitre:'sous_titre',srcDesc:'description',srcMotCle:'mot_cle',srcCat:'categorie_id',srcOrg:'organisation_id',srcConf:'niveau_confidentialite',srcDateDepot:'date_depot'};
+  const fields={srcTitre:'titre',srcDesc:'description',srcMotCle:'mot_cle',srcCat:'categorie_id',srcDateDepot:'date_depot'};
   for(const[id,param] of Object.entries(fields)){
     const val=document.getElementById(id)?.value;
     if(val) params.push(`${param}=${encodeURIComponent(val)}`);
@@ -944,12 +950,12 @@ async function executeRecherche() {
       container.innerHTML=`<div class="card"><div class="card-header"><h3>${results.length} résultat(s)</h3>
         <button class="btn btn-sm btn-outline" onclick="document.getElementById('rechercheResults').innerHTML=''">✕ Fermer</button></div>
       <div class="card-body"><div class="table-container"><table>
-        <thead><tr><th>Référence</th><th>Titre</th><th>Organisation</th><th>Localisation</th><th>Confidentialité</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Type</th><th>Titre</th><th>Localisation</th><th>Actions</th></tr></thead>
         <tbody>${results.map(d=>`<tr>
-          <td><strong>${d.reference}</strong></td><td>${escapeHtml(d.titre)}</td><td>${escapeHtml(d.organisation_nom)}</td>
-          <td><small>${escapeHtml(d.salle_nom)} › ${escapeHtml(d.code_armoire)} › ${escapeHtml(d.code_boite)}</small></td>
-          <td>${getConfidentialiteBadge(d.niveau_confidentialite)}</td>
-          <td><button class="btn btn-sm btn-outline" onclick="viewDossier(${d.id})">👁️</button></td>
+          <td><span class="badge badge-info">${escapeHtml(d.type||'Dossier')}</span></td>
+          <td>${escapeHtml(d.titre)}</td>
+          <td><small>${escapeHtml(d.salle_nom||'')} › ${escapeHtml(d.armoire_nom||'')} › ${escapeHtml(d.boite_nom||d.code_boite||'')}</small></td>
+          <td><button class="btn btn-sm btn-outline" onclick="${d.type==='Fichier'?`ouvrirDetailsFichier(${d.id})`:`viewDossier(${d.dossier_id||d.id})`}">👁️</button></td>
         </tr>`).join('')}</tbody>
       </table></div></div></div>`;
     } else {
@@ -964,7 +970,7 @@ async function handleGlobalSearch(event) {
   try {
     const results = await API.quickSearch(q);
     const c = document.getElementById('contentArea');
-    c.innerHTML = `<div class="card"><div class="card-header"><h3>Résultats pour « ${escapeHtml(q)} »</h3></div><div class="card-body"><div class="table-container"><table><thead><tr><th>Type</th><th>Nom</th><th>Code / référence</th><th>Description</th></tr></thead><tbody>${results.length ? results.map(r => `<tr><td><span class="badge badge-info">${escapeHtml(r.type)}</span></td><td><strong>${escapeHtml(r.nom)}</strong></td><td>${escapeHtml(r.code || r.reference || '-')}</td><td>${escapeHtml(r.description || '')}</td></tr>`).join('') : '<tr><td colspan="4">Aucun résultat</td></tr>'}</tbody></table></div></div></div>`;
+    c.innerHTML = `<div class="card"><div class="card-header"><h3>Résultats pour « ${escapeHtml(q)} »</h3></div><div class="card-body"><div class="table-container"><table><thead><tr><th>Type</th><th>Nom</th><th>Description</th></tr></thead><tbody>${results.length ? results.map(r => `<tr><td><span class="badge badge-info">${escapeHtml(r.type)}</span></td><td><strong>${escapeHtml(r.nom)}</strong></td><td>${escapeHtml(r.description || '')}</td></tr>`).join('') : '<tr><td colspan="3">Aucun résultat</td></tr>'}</tbody></table></div></div></div>`;
     document.getElementById('pageTitle').textContent = 'Résultats de recherche';
   } catch(e) { showToast(e.message, 'error'); }
 }
@@ -997,11 +1003,10 @@ async function loadUsers() {
       <div style="display:flex;justify-content:space-between;margin-bottom:20px"><div></div>
         ${canModify()?'<button class="btn btn-primary" onclick="showAddUserModal()">+ Nouvel utilisateur</button>':''}</div>
       <div class="card"><div class="card-body"><div class="table-container"><table>
-        <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Organisation</th><th>Statut</th><th>Dernière connexion</th>${canModify()?'<th>Actions</th>':''}</tr></thead>
+        <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th><th>Dernière connexion</th>${canModify()?'<th>Actions</th>':''}</tr></thead>
         <tbody>${users.map(u=>`<tr>
           <td><strong>${escapeHtml(u.prenom)} ${escapeHtml(u.nom)}</strong></td><td>${escapeHtml(u.email)}</td>
           <td><span class="badge badge-primary">${escapeHtml(u.role_nom)}</span></td>
-          <td>${escapeHtml(u.organisation_nom||'-')}</td>
           <td>${u.actif?'<span class="badge badge-success">Actif</span>':'<span class="badge badge-danger">Inactif</span>'}</td>
           <td>${u.derniere_connexion?formatDate(u.derniere_connexion):'-'}</td>
           ${canModify()?`<td class="actions">
@@ -1028,7 +1033,6 @@ async function showAddUserModal() {
       <option value="">-- Sélectionner un rôle --</option>
       ${roles.map(r=>`<option value="${r.id}">${escapeHtml(r.nom)}</option>`).join('')}
     </select></div>
-    ${currentUser.role_nom==='Super Admin'?`<div class="form-group"><label>Organisation</label><select id="userOrg"><option value="">Aucune</option><option value="1">OPA</option><option value="2">Dépêche</option></select></div>`:`<input type="hidden" id="userOrg" value="${currentUser.organisation_id||''}">`}
   `, `<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitAddUser()">Créer</button>`);
 }
 
@@ -1056,13 +1060,12 @@ async function submitAddUser() {
   if (isNaN(parsedRoleId)) { showToast('Rôle invalide', 'error'); return; }
 
   try {
-    const orgEl = document.getElementById('userOrg');
-    const orgVal = orgEl ? orgEl.value : '';
+    let organisation_id = currentUser && currentUser.organisation_id ? currentUser.organisation_id : 1;
     await API.createUser({
       prenom, nom, email, mot_de_passe,
       telephone: document.getElementById('userTel')?.value || '',
       role_id: parsedRoleId,
-      organisation_id: orgVal ? parseInt(orgVal) || null : null
+      organisation_id
     });
     closeModal(); showToast('Utilisateur créé avec succès'); loadUsers();
   } catch(e) { showToast(e.message || 'Erreur lors de la création', 'error'); }
@@ -1095,12 +1098,40 @@ async function deleteUser(id,name) {
 
 
 // ===== SALLES =====
-async function loadSalles(){const c=document.getElementById('contentArea');c.innerHTML='<div class="loading"><div class="spinner"></div></div>';try{const salles=await API.getSalles();c.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:20px"><div></div>${canModify()?'<button class="btn btn-primary" onclick="showAddSalleModal()">+ Ajouter une salle</button>':''}</div><div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th>Salle</th><th>Organisation</th><th>Description</th><th>Armoires</th>${canModify()?'<th>Actions</th>':''}</tr></thead><tbody>${salles.length?salles.map(s=>`<tr><td><strong>${escapeHtml(s.nom)}</strong></td><td>${escapeHtml(s.organisation_nom)}</td><td>${escapeHtml(s.description||'-')}</td><td>${s.nb_armoires||0}</td>${canModify()?`<td><button class="btn btn-sm btn-danger" onclick="deleteSalle(${s.id})">🗑️ Supprimer</button></td>`:''}</tr>`).join(''):'<tr><td colspan="5" style="text-align:center;padding:30px">Aucune salle créée</td></tr>'}</tbody></table></div></div></div>`;}catch(e){c.innerHTML=`<div class="empty-state"><p>${e.message}</p></div>`;}}
+async function loadSalles(){
+  const c=document.getElementById('contentArea');
+  c.innerHTML='<div class="loading"><div class="spinner"></div></div>';
+  try{
+    const salles=await API.getSalles();
+    const colCount = canModify() ? 4 : 3;
+    c.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:20px"><div></div>${canModify()?'<button class="btn btn-primary" onclick="showAddSalleModal()">+ Ajouter une salle</button>':''}</div><div class="card"><div class="card-body"><div class="table-container"><table><thead><tr><th>Salle</th><th>Description</th><th>Armoires</th>${canModify()?'<th>Actions</th>':''}</tr></thead><tbody>${salles.length?salles.map(s=>`<tr><td><strong>${escapeHtml(s.nom)}</strong></td><td>${escapeHtml(s.description||'-')}</td><td>${s.nb_armoires||0}</td>${canModify()?`<td><button class="btn btn-sm btn-danger" onclick="deleteSalle(${s.id})">🗑️ Supprimer</button></td>`:''}</tr>`).join(''):`<tr><td colspan="${colCount}" style="text-align:center;padding:30px">Aucune salle créée</td></tr>`}</tbody></table></div></div></div>`;
+  }catch(e){c.innerHTML=`<div class="empty-state"><p>${e.message}</p></div>`;}
+}
 
 async function deleteSalle(id){
   if(!confirm('Supprimer cette salle ? Les armoires et données liées peuvent empêcher la suppression.')) return;
   try { await API.deleteSalle(id); showToast('Salle supprimée avec succès.'); loadSalles(); }
   catch(e) { showToast(e.message, 'error'); }
 }
-async function showAddSalleModal(){const organisations=await API.getOrganisations();openModal('Ajouter une salle',`<div class="form-group"><label>Organisation *</label><select id="salleOrganisation">${organisations.map(o=>`<option value="${o.id}">${escapeHtml(o.nom)}</option>`).join('')}</select></div><div class="form-group"><label>Nom de la salle *</label><input id="salleNom" placeholder="Ex. Archives centrales"></div><div class="form-group"><label>Description</label><textarea id="salleDescription"></textarea></div>`,`<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitAddSalle()">Créer</button>`);}
-async function submitAddSalle(){const organisation_id=document.getElementById('salleOrganisation').value,nom=document.getElementById('salleNom').value.trim(),description=document.getElementById('salleDescription').value;if(!organisation_id||!nom)return showToast('Organisation et nom de salle requis.','error');try{await API.createSalle({organisation_id:parseInt(organisation_id),nom,description});closeModal();showToast('Salle créée avec succès.');loadSalles();}catch(e){showToast(e.message,'error');}}
+async function showAddSalleModal(){
+  openModal('Ajouter une salle',`
+    <div class="form-group"><label>Nom de la salle *</label><input id="salleNom" placeholder="Ex. Archives centrales"></div>
+    <div class="form-group"><label>Description</label><textarea id="salleDescription"></textarea></div>
+  `,`<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitAddSalle()">Créer</button>`);
+}
+async function submitAddSalle(){
+  const nom=document.getElementById('salleNom').value.trim();
+  const description=document.getElementById('salleDescription').value;
+  if(!nom) return showToast('Le nom de la salle est requis.','error');
+  try{
+    let organisation_id = currentUser && currentUser.organisation_id ? currentUser.organisation_id : null;
+    if(!organisation_id){
+      const orgs = await API.getOrganisations();
+      organisation_id = orgs && orgs[0] ? orgs[0].id : 1;
+    }
+    await API.createSalle({organisation_id:parseInt(organisation_id),nom,description});
+    closeModal();
+    showToast('Salle créée avec succès.');
+    loadSalles();
+  }catch(e){showToast(e.message,'error');}
+}

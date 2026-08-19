@@ -111,6 +111,7 @@ return result;
   // Recherche
   search: (params) => API.request('GET', `/recherche?${params}`),
   quickSearch: (q) => API.request('GET', `/recherche/quick?q=${encodeURIComponent(q)}`),
+  getSommaire: () => API.request('GET', '/sommaire'),
 
   // Dashboard
   getDashboard: () => API.request('GET', '/dashboard'),

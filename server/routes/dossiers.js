@@ -93,9 +93,21 @@ router.get('/:id', auth, async (req, res) => {
 // ===== CRÉER =====
 router.post('/', auth, roleCheck(80), async (req, res) => {
   try {
-    const { boite_id, titre, sous_titre, description, categorie_id, sous_categorie_id, niveau_confidentialite, organisation_id } = req.body;
-    if (!boite_id || !titre || !organisation_id) return res.status(400).json({ error: 'Boîte, titre et organisation requis.' });
-    if (req.user.role_nom !== 'Super Admin' && req.user.organisation_id !== organisation_id) return res.status(403).json({ error: 'Organisation non autorisée.' });
+    const { boite_id, titre, sous_titre, description, categorie_id, sous_categorie_id, niveau_confidentialite } = req.body;
+    if (!boite_id || !titre) return res.status(400).json({ error: 'Boîte et titre requis.' });
+
+    let organisation_id = req.body.organisation_id || req.user.organisation_id || null;
+    if (!organisation_id) {
+      const [rows] = await db.query(
+        `SELECT s.organisation_id
+         FROM boites b
+         JOIN armoires a ON b.armoire_id = a.id
+         JOIN salles s ON a.salle_id = s.id
+         WHERE b.id = ?`,
+        [boite_id]
+      );
+      organisation_id = rows[0] ? rows[0].organisation_id : 1;
+    }
 
     const reference = await generateReference();
     const [result] = await db.query(
