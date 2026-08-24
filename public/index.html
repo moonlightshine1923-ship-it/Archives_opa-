@@ -1,136 +1,65 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Archives OPA — Gestion documentaire</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
-  <style>
-    .menu-toggle { display: none; background: none; border: none; font-size: 24px; cursor: pointer; }
-    @media (max-width: 768px) { .menu-toggle { display: block; } }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Archives OPA — Gestion documentaire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+.menu-toggle { display: none; background: none; border: none; font-size:24px; cursor:pointer; }
+@media (max-width:768px){ .menu-toggle{ display:block; } }
+</style>
 </head>
 <body>
-
-<!-- ===== LOGIN PAGE ===== -->
 <div id="loginPage" class="login-container">
-  <div class="login-box">
-    <div class="logo">
-      <div class="icon">📁</div>
-      <h1>Archives <em>OPA</em></h1>
-      <p>Archives — Organisation du Patronat Algérien</p>
-    </div>
-    <form id="loginForm">
-      <div class="form-group">
-        <label>Email</label>
-        <input type="email" id="loginEmail" placeholder="votre@email.com" required>
-      </div>
-      <div class="form-group">
-        <label>Mot de passe</label>
-        <input type="password" id="loginPassword" placeholder="••••••••" required>
-      </div>
-      <button type="submit" class="btn btn-primary btn-block btn-lg">Se connecter</button>
-    </form>
-    <div id="loginError" style="color:var(--danger);text-align:center;margin-top:16px;font-size:13px;display:none"></div>
-  </div>
+<div class="login-box">
+<div class="logo"><div class="icon">📁</div><h1>Archives <em>OPA</em></h1><p>Archives — Organisation du Patronat Algérien</p></div>
+<form id="loginForm">
+<div class="form-group"><label>Email</label><input type="email" id="loginEmail" placeholder="votre@email.com" required></div>
+<div class="form-group"><label>Mot de passe</label><input type="password" id="loginPassword" placeholder="••••••••" required></div>
+<button type="submit" class="btn btn-primary btn-block btn-lg">Se connecter</button>
+</form>
+<div id="loginError" style="color:var(--danger);text-align:center;margin-top:16px;font-size:13px;display:none"></div>
+</div>
 </div>
 
-<!-- ===== MAIN APP ===== -->
 <div id="appPage" class="app-layout" style="display:none">
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <span class="logo-icon">📁</span>
-      <div><h2>Archives <span>OPA</span></h2><small>Archives — Organisation du Patronat Algérien</small></div>
-    </div>
-    <nav class="sidebar-nav">
-      <div class="nav-section">Principal</div>
-      <div class="nav-item" data-page="dashboard" data-min-level="0" onclick="navigateTo('dashboard')">
-        <span class="icon">📊</span> Dashboard
-      </div>
-      <div class="nav-section">Archives</div>
-      <div class="nav-item" data-page="salles" data-min-level="80" onclick="navigateTo('salles')">
-        <span class="icon">🏛️</span> Salles
-      </div>
-      <div class="nav-item" data-page="armoires" data-min-level="80" onclick="navigateTo('armoires')">
-        <span class="icon">🗄️</span> Armoires
-      </div>
-      <div class="nav-item" data-page="boites" data-min-level="80" onclick="navigateTo('boites')">
-        <span class="icon">📦</span> Boîtes
-      </div>
-      <div class="nav-item" data-page="dossiers" data-min-level="0" onclick="navigateTo('dossiers')">
-        <span class="icon">📂</span> Dossiers
-      </div>
-      <div class="nav-item" data-page="fichiers" data-min-level="0" onclick="navigateTo('fichiers')">
-        <span class="icon">📄</span> Fichiers
-      </div>
-      <div class="nav-item" data-page="sommaire" data-min-level="0" onclick="navigateTo('sommaire')">
-        <span class="icon">📋</span> Sommaire
-      </div>
-      <div class="nav-item" data-page="categories" data-min-level="80" onclick="navigateTo('categories')">
-        <span class="icon">🏷️</span> Catégories
-      </div>
-      <div class="nav-section">Outils</div>
-      <div class="nav-item" data-page="recherche" data-min-level="0" onclick="navigateTo('recherche')">
-        <span class="icon">🔍</span> Recherche
-      </div>
-      <div class="nav-item" data-page="audit" data-min-level="80" onclick="navigateTo('audit')">
-        <span class="icon">📝</span> Journal d'audit
-      </div>
-      <div class="nav-item" data-page="users" data-min-level="80" onclick="navigateTo('users')">
-        <span class="icon">👥</span> Utilisateurs
-      </div>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="user-info">
-        <div class="user-avatar" id="userAvatar">SA</div>
-        <div>
-          <div class="user-name" id="userName">Super Admin</div>
-          <div class="user-role" id="userRoleName">Super Admin</div>
-        </div>
-        <button onclick="logout()" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,0.5);cursor:pointer;font-size:18px" title="Déconnexion">🚪</button>
-      </div>
-    </div>
-  </aside>
-
-  <main class="main-content">
-    <header class="header">
-      <div class="header-left">
-        <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-        <h1 id="pageTitle">Dashboard</h1>
-      </div>
-      <div class="header-search">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="globalSearch" placeholder="Rechercher fichier, boîte, catégorie..." onkeyup="handleGlobalSearch(event)">
-      </div>
-      <div class="header-right">
-        <button class="btn btn-sm btn-outline" onclick="navigateTo('recherche')">🔍 Recherche avancée</button>
-      </div>
-    </header>
-    <div class="content" id="contentArea"></div>
-  </main>
+<aside class="sidebar" id="sidebar">
+<div class="sidebar-header"><span class="logo-icon">📁</span><div><h2>Archives <span>OPA</span></h2><small>Archives — Organisation du Patronat Algérien</small></div></div>
+<nav class="sidebar-nav">
+<div class="nav-section">Principal</div>
+<div class="nav-item" data-page="dashboard" data-min-level="0" onclick="navigateTo('dashboard')"><span class="icon">📊</span> Dashboard</div>
+<div class="nav-section">Archives</div>
+<div class="nav-item" data-page="salles" data-min-level="80" onclick="navigateTo('salles')"><span class="icon">🏛️</span> Salles</div>
+<div class="nav-item" data-page="armoires" data-min-level="80" onclick="navigateTo('armoires')"><span class="icon">🗄️</span> Armoires</div>
+<div class="nav-item" data-page="boites" data-min-level="80" onclick="navigateTo('boites')"><span class="icon">📦</span> Boîtes</div>
+<div class="nav-item" data-page="dossiers" data-min-level="0" onclick="navigateTo('dossiers')"><span class="icon">📂</span> Dossiers</div>
+<div class="nav-item" data-page="fichiers" data-min-level="0" onclick="navigateTo('fichiers')"><span class="icon">📄</span> Fichiers</div>
+<div class="nav-item" data-page="sommaire" data-min-level="0" onclick="navigateTo('sommaire')"><span class="icon">📋</span> Sommaire</div>
+<div class="nav-item" data-page="categories" data-min-level="80" onclick="navigateTo('categories')"><span class="icon">🏷️</span> Catégories</div>
+<div class="nav-section">Outils</div>
+<div class="nav-item" data-page="recherche" data-min-level="0" onclick="navigateTo('recherche')"><span class="icon">🔍</span> Recherche</div>
+<div class="nav-item" data-page="audit" data-min-level="80" onclick="navigateTo('audit')"><span class="icon">📝</span> Journal d'audit</div>
+<div class="nav-item" data-page="users" data-min-level="80" onclick="navigateTo('users')"><span class="icon">👥</span> Utilisateurs</div>
+</nav>
+<div class="sidebar-footer"><div class="user-info"><div class="user-avatar" id="userAvatar">SA</div><div><div class="user-name" id="userName">Super Admin</div><div class="user-role" id="userRoleName">Super Admin</div></div><button onclick="logout()" style="margin-left:auto;background:none;border:none;color:rgba(255,255,255,0.5);cursor:pointer;font-size:18px" title="Déconnexion">🚪</button></div></div>
+</aside>
+<main class="main-content">
+<header class="header"><div class="header-left"><button class="menu-toggle" onclick="toggleSidebar()">☰</button><h1 id="pageTitle">Dashboard</h1></div><div class="header-search"><span class="search-icon">🔍</span><input type="text" id="globalSearch" placeholder="Rechercher fichier, boîte, catégorie..." onkeyup="handleGlobalSearch(event)"></div><div class="header-right"><button class="btn btn-sm btn-outline" onclick="navigateTo('recherche')">🔍 Recherche avancée</button></div></header>
+<div class="content" id="contentArea"></div>
+</main>
 </div>
 
-<!-- ===== MODAL ===== -->
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal">
-    <div class="modal-header">
-      <h3 id="modalTitle">Modal</h3>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="modal-body" id="modalBody"></div>
-    <div class="modal-footer" id="modalFooter"></div>
-  </div>
-</div>
-
-<!-- ===== TOAST ===== -->
+<div class="modal-overlay" id="modalOverlay"><div class="modal"><div class="modal-header"><h3 id="modalTitle">Modal</h3><button class="modal-close" onclick="closeModal()">✕</button></div><div class="modal-body" id="modalBody"></div><div class="modal-footer" id="modalFooter"></div></div></div>
 <div class="toast-container" id="toastContainer"></div>
 
-<script src="js/api.js"></script>
-<script src="js/app.js"></script>
-<script src="js/hierarchie-fichiers.js"></script>
-
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a2d85b2d98a02820',t:'MTc4NzEzNDA5Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<!-- CHEMINS ABSOLUS FIX -->
+<script src="/js/api.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/hierarchie-fichiers.js"></script>
+<!-- FIN - PAS DE SCRIPT CLOUDFLARE ICI -->
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a301938b9c3c33c9',t:'MTc4NzU2NjMyMg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

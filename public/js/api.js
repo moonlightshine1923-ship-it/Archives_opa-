@@ -1,12 +1,22 @@
 /**
- * API Client - Archives App (v2)
+ * API Client - Archives App - FINAL FIXED
+ * - Fix HTML detection
+ * - Fix 401 reload bug on login
+ * - Inclut getRoles, getUser, etc.
  */
 const API = {
   baseUrl: '/api',
   token: localStorage.getItem('archives_token'),
 
-  setToken(token) { this.token = token; localStorage.setItem('archives_token', token); },
-  clearToken() { this.token = null; localStorage.removeItem('archives_token'); localStorage.removeItem('archives_user'); },
+  setToken(token) {
+    this.token = token;
+    localStorage.setItem('archives_token', token);
+  },
+  clearToken() {
+    this.token = null;
+    localStorage.removeItem('archives_token');
+    localStorage.removeItem('archives_user');
+  },
 
   async request(method, endpoint, data = null, isFile = false) {
     const headers = {};
@@ -18,29 +28,51 @@ const API = {
 
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, options);
-      if (response.status === 401) { this.clearToken(); window.location.reload(); return; }
+
+      // FIX: Ne pas reload sur login / me
+      if (response.status === 401) {
+        if (endpoint.includes('/auth/login')) {
+          const txt = await response.text();
+          let j = {};
+          try { j = JSON.parse(txt); } catch { j = { error: txt }; }
+          throw new Error(j.error || 'Email ou mot de passe incorrect');
+        }
+        if (endpoint.includes('/auth/me')) {
+          this.clearToken();
+          throw new Error('Session expirée');
+        }
+        this.clearToken();
+        window.location.reload();
+        return;
+      }
+
       if (response.status === 204) return { success: true };
 
       const responseText = await response.text();
 
-let result = {};
+      // FIX: Détecte HTML au lieu de JSON
+      const trimmed = responseText.trim();
+      if (trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html') || (trimmed.startsWith('<') && trimmed.toLowerCase().includes('html'))) {
+        console.error('HTML reçu pour', endpoint, trimmed.substring(0, 200));
+        throw new Error(`Serveur a renvoyé HTML pour ${endpoint}. Backend éteint ?`);
+      }
 
-try {
-  result = responseText ? JSON.parse(responseText) : {};
-} catch {
-  result = {
-    error: responseText || `Erreur serveur (${response.status})`
-  };
-}
+      let result = {};
+      try {
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        result = { error: responseText || `Erreur serveur (${response.status})` };
+      }
 
-if (!response.ok) {
-  throw new Error(result.error || `Erreur serveur (${response.status})`);
-}
+      if (!response.ok) {
+        throw new Error(result.error || `Erreur serveur (${response.status})`);
+      }
 
-return result;
-
+      return result;
     } catch (error) {
-      if (error.message && error.message.includes('fetch')) throw new Error('Impossible de contacter le serveur.');
+      if (error.message && error.message.toLowerCase().includes('failed to fetch')) {
+        throw new Error('Impossible de contacter le serveur (http://localhost:3000)');
+      }
       throw error;
     }
   },
@@ -119,7 +151,7 @@ return result;
   // Audit
   getAudit: (params = '') => API.request('GET', `/audit${params ? '?' + params : ''}`),
 
-  // Users
+  // Users - COMPLET
   getUsers: () => API.request('GET', '/users'),
   getUser: (id) => API.request('GET', `/users/${id}`),
   createUser: (data) => API.request('POST', '/users', data),
