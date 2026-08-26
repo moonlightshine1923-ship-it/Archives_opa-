@@ -72,16 +72,34 @@ router.post('/', auth, async (req, res) => {
   try {
     const { nom, prenom, email, mot_de_passe, telephone, role_id, organisation_id } = req.body;
 
-    // Validation avec parseInt robuste
     if (!prenom || !String(prenom).trim()) return res.status(400).json({ error: 'Prénom requis.' });
     if (!nom || !String(nom).trim()) return res.status(400).json({ error: 'Nom requis.' });
-    if (!email || !String(email).trim()) return res.status(400).json({ error: 'Email requis.' });
     if (!mot_de_passe || !String(mot_de_passe).trim()) return res.status(400).json({ error: 'Mot de passe requis.' });
-    
-    const parsedRoleId = parseInt(role_id);
-    if (!parsedRoleId || isNaN(parsedRoleId)) return res.status(400).json({ error: 'Rôle requis.' });
 
-    // Calculer organisation_id
+    const slug = (s) => String(s)
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '').trim() || 'user';
+
+    let finalEmail = email && String(email).trim() ? String(email).trim() : `${slug(prenom)}.${slug(nom)}@depeche.local`;
+    let [existing] = await db.query('SELECT id FROM users WHERE email = ?', [finalEmail]);
+    let n = 2;
+    while (existing.length) {
+      finalEmail = `${slug(prenom)}.${slug(nom)}${n}@depeche.local`;
+      [existing] = await db.query('SELECT id FROM users WHERE email = ?', [finalEmail]);
+      n += 1;
+    }
+
+    let parsedRoleId = parseInt(role_id);
+    if (!parsedRoleId || isNaN(parsedRoleId)) {
+      const [roles] = await db.query(
+        `SELECT id FROM roles
+         WHERE nom = 'Archiviste' OR niveau = 50
+         ORDER BY CASE WHEN nom = 'Archiviste' THEN 0 ELSE 1 END, niveau ASC
+         LIMIT 1`
+      );
+      parsedRoleId = roles.length ? roles[0].id : 4;
+    }
+
     let orgId = null;
     if (organisation_id !== undefined && organisation_id !== null && organisation_id !== '') {
       orgId = parseInt(organisation_id) || null;
@@ -90,25 +108,21 @@ router.post('/', auth, async (req, res) => {
       orgId = req.user.organisation_id;
     }
 
-    // Vérifier email unique
-    const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [String(email).trim()]);
-    if (existing.length) return res.status(400).json({ error: 'Email déjà utilisé.' });
-
     const hash = await bcrypt.hash(String(mot_de_passe), 10);
 
     const [result] = await db.query(
       `INSERT INTO users (organisation_id, role_id, nom, prenom, email, mot_de_passe, telephone)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [orgId, parsedRoleId, String(nom).trim(), String(prenom).trim(), String(email).trim(), hash, telephone || null]
+      [orgId, parsedRoleId, String(nom).trim(), String(prenom).trim(), finalEmail, hash, telephone || null]
     );
 
     await logAudit({
       userId: req.user.id, action: ACTIONS.CREATE, table: 'users',
-      recordId: result.insertId, details: { nom, prenom, email },
+      recordId: result.insertId, details: { nom, prenom, email: finalEmail },
       ip: req.ip, userAgent: req.get('User-Agent')
     });
 
-    res.status(201).json({ id: result.insertId, message: 'Utilisateur créé avec succès.' });
+    res.status(201).json({ id: result.insertId, email: finalEmail, message: 'Utilisateur créé avec succès.' });
   } catch (error) {
     console.error('Erreur création utilisateur:', error);
     res.status(500).json({ error: 'Erreur serveur.' });

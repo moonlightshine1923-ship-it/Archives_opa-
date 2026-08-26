@@ -1,7 +1,5 @@
 /**
- * Archives App - Main Application (v4.9)
- * - Suppression utilisateurs
- * - Restrictions par rôle (Consultation/Archiviste = lecture seule)
+ * Archives OPA - Application principale (v5.0)
  */
 
 let currentUser = null;
@@ -585,7 +583,7 @@ async function showAddDossierModal() {
       <option value="">Sélectionner une boîte</option>
       ${boites.map(b=>`<option value="${b.id}">${escapeHtml(b.salle_nom)} › ${escapeHtml(b.armoire_nom||'')} › ${escapeHtml(b.nom)}</option>`).join('')}
     </select></div>
-    <div class="form-group"><label>Titre *</label><input id="dossTitre" placeholder="Convention OPA"></div>
+    <div class="form-group"><label>Titre *</label><input id="dossTitre" placeholder="Dossier rédaction"></div>
     <div class="form-group"><label>Description</label><textarea id="dossDesc"></textarea></div>
     <div class="form-group"><label>Catégorie</label><select id="dossCat">
       <option value="">Aucune</option>
@@ -789,7 +787,7 @@ async function loadCategories() {
 function showAddCategorieModal() {
   const orgId=currentUser.organisation_id;
   openModal('Nouvelle catégorie', `
-    <div class="form-group"><label>Nom *</label><input id="catNom" placeholder="Notariat"></div>
+    <div class="form-group"><label>Nom *</label><input id="catNom" placeholder="Rédaction"></div>
     <div class="form-group"><label>Description</label><textarea id="catDesc"></textarea></div>
 
   `, `<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitAddCategorie()">Créer</button>`);
@@ -982,14 +980,13 @@ async function loadAudit() {
     const entries=await API.getAudit();
     c.innerHTML=`<div class="card"><div class="card-header"><h3>📝 Journal d'Audit</h3></div>
     <div class="card-body"><div class="table-container"><table>
-      <thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Table</th><th>IP</th></tr></thead>
+      <thead><tr><th>Date</th><th>Utilisateur</th><th>Action</th><th>Table</th></tr></thead>
       <tbody>${entries.length?entries.map(e=>`<tr>
         <td>${formatDateTime(e.date_action)}</td>
         <td>${e.user_nom?`${escapeHtml(e.user_prenom)} ${escapeHtml(e.user_nom)}`:'-'}<br><small>${escapeHtml(e.user_email||'')}</small></td>
         <td><span class="badge badge-primary">${escapeHtml(e.action)}</span></td>
         <td>${escapeHtml(e.table_concernee||'-')}</td>
-        <td><small>${escapeHtml(e.adresse_ip||'-')}</small></td>
-      </tr>`).join(''):'<tr><td colspan="5" style="text-align:center;padding:40px">Aucune entrée</td></tr>'}</tbody>
+      </tr>`).join(''):'<tr><td colspan="4" style="text-align:center;padding:40px">Aucune entrée</td></tr>'}</tbody>
     </table></div></div></div>`;
   } catch(e) { c.innerHTML=`<div class="empty-state"><p>${e.message}</p></div>`; }
 }
@@ -1020,54 +1017,34 @@ async function loadUsers() {
 }
 
 async function showAddUserModal() {
-  let roles = [];
-  try { roles = await API.getRoles(); } catch(e) { showToast('Impossible de charger les rôles: ' + e.message, 'error'); return; }
-  if (!roles || !roles.length) { showToast('Aucun rôle disponible', 'error'); return; }
   openModal('Nouvel utilisateur', `
     <div class="form-group"><label>Prénom *</label><input id="userPrenom"></div>
     <div class="form-group"><label>Nom *</label><input id="userNom"></div>
-    <div class="form-group"><label>Email *</label><input type="email" id="userEmail"></div>
     <div class="form-group"><label>Mot de passe *</label><input type="password" id="userPassword"></div>
-    <div class="form-group"><label>Téléphone</label><input id="userTel"></div>
-    <div class="form-group"><label>Rôle *</label><select id="userRole">
-      <option value="">-- Sélectionner un rôle --</option>
-      ${roles.map(r=>`<option value="${r.id}">${escapeHtml(r.nom)}</option>`).join('')}
-    </select></div>
   `, `<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitAddUser()">Créer</button>`);
 }
 
 async function submitAddUser() {
   const prenomEl = document.getElementById('userPrenom');
   const nomEl = document.getElementById('userNom');
-  const emailEl = document.getElementById('userEmail');
   const passwordEl = document.getElementById('userPassword');
-  const roleEl = document.getElementById('userRole');
-  if (!prenomEl || !nomEl || !emailEl || !passwordEl || !roleEl) { showToast('Erreur: formulaire invalide', 'error'); return; }
+  if (!prenomEl || !nomEl || !passwordEl) { showToast('Erreur: formulaire invalide', 'error'); return; }
 
   const prenom = prenomEl.value.trim();
   const nom = nomEl.value.trim();
-  const email = emailEl.value.trim();
   const mot_de_passe = passwordEl.value;
-  const role_id = roleEl.value;
 
   if (!prenom) { showToast('Prénom requis', 'error'); return; }
   if (!nom) { showToast('Nom requis', 'error'); return; }
-  if (!email) { showToast('Email requis', 'error'); return; }
   if (!mot_de_passe) { showToast('Mot de passe requis', 'error'); return; }
-  if (!role_id) { showToast('Veuillez sélectionner un rôle', 'error'); return; }
-
-  const parsedRoleId = parseInt(role_id);
-  if (isNaN(parsedRoleId)) { showToast('Rôle invalide', 'error'); return; }
 
   try {
     let organisation_id = currentUser && currentUser.organisation_id ? currentUser.organisation_id : 1;
-    await API.createUser({
-      prenom, nom, email, mot_de_passe,
-      telephone: document.getElementById('userTel')?.value || '',
-      role_id: parsedRoleId,
-      organisation_id
-    });
-    closeModal(); showToast('Utilisateur créé avec succès'); loadUsers();
+    const result = await API.createUser({ prenom, nom, mot_de_passe, organisation_id });
+    closeModal();
+    const loginHint = result && result.email ? ` Identifiant : ${result.email}` : '';
+    showToast('Utilisateur créé.' + loginHint);
+    loadUsers();
   } catch(e) { showToast(e.message || 'Erreur lors de la création', 'error'); }
 }
 
