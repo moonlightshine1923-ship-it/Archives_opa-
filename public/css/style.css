@@ -1291,3 +1291,61 @@ table tr:hover td { background: #f2f9fc; }
 .form-group:has(#userOrg),
 .form-group:has(#srcOrg) { display: none !important; }
 #salleOrganisation, #dossOrg, #catOrg, #userOrg, #srcOrg { display: none !important; }
+
+
+/* ===== CHAMP MOT DE PASSE — afficher / masquer ===== */
+.password-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-field input[type="password"],
+.password-field input[type="text"] {
+  padding-right: 46px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: calc(var(--radius) - 3px);
+  background: transparent;
+  color: var(--secondary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.password-toggle:hover {
+  background: var(--light);
+  color: var(--primary);
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.password-toggle svg {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
+.password-toggle .icon-eye-off { display: none; }
+
+.password-toggle.is-visible { color: var(--primary); }
+.password-toggle.is-visible .icon-eye { display: none; }
+.password-toggle.is-visible .icon-eye-off { display: block; }
+
+/* Évite le double œil : masque l'icône native "reveal" d'Edge/IE */
+.password-field input::-ms-reveal,
+.password-field input::-ms-clear { display: none; }

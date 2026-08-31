@@ -52,6 +52,46 @@ async function logout() {
   API.clearToken(); showLogin();
 }
 
+// ===== AFFICHER / MASQUER LE MOT DE PASSE =====
+/**
+ * Bascule un champ mot de passe entre masqué (type="password") et visible
+ * (type="text"), en gardant le focus et la position du curseur dans le champ.
+ * @param {HTMLElement} button - le bouton .password-toggle cliqué
+ */
+function togglePasswordField(button) {
+  const input = button.dataset.target
+    ? document.getElementById(button.dataset.target)
+    : (button.parentElement && button.parentElement.querySelector('input'));
+  if (!input) return;
+
+  const visible = input.type === 'text';
+  const caretStart = input.selectionStart;
+  const caretEnd = input.selectionEnd;
+
+  input.type = visible ? 'password' : 'text';
+  button.classList.toggle('is-visible', !visible);
+  button.setAttribute('aria-pressed', String(!visible));
+
+  const libelle = !visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe';
+  button.setAttribute('aria-label', libelle);
+  button.title = libelle;
+
+  input.focus();
+  if (caretStart !== null && caretEnd !== null) {
+    try { input.setSelectionRange(caretStart, caretEnd); } catch { /* type non textuel */ }
+  }
+}
+
+// Délégation d'événement : fonctionne aussi pour les champs créés dynamiquement
+// (modales), sans avoir à réinitialiser quoi que ce soit.
+document.addEventListener('click', (e) => {
+  if (!(e.target instanceof Element)) return;
+  const button = e.target.closest('.password-toggle');
+  if (!button) return;
+  e.preventDefault();
+  togglePasswordField(button);
+});
+
 function showLogin() {
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('appPage').style.display = 'none';
@@ -1020,7 +1060,7 @@ async function showAddUserModal() {
   openModal('Nouvel utilisateur', `
     <div class="form-group"><label>Prénom *</label><input id="userPrenom"></div>
     <div class="form-group"><label>Nom *</label><input id="userNom"></div>
-    <div class="form-group"><label>Mot de passe *</label><input type="password" id="userPassword"></div>
+    <div class="form-group"><label for="userPassword">Mot de passe *</label><div class="password-field"><input type="password" id="userPassword" autocomplete="new-password"><button type="button" class="password-toggle" data-target="userPassword" aria-label="Afficher le mot de passe" aria-pressed="false" title="Afficher le mot de passe"><svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg><svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button></div></div>
   `, `<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitAddUser()">Créer</button>`);
 }
 
