@@ -44,7 +44,7 @@ router.get('/', auth, async (req, res) => {
     }
 
     const [boites] = await db.query(
-      `SELECT b.id, b.nom, b.code_boite, a.nom AS armoire_nom, s.nom AS salle_nom
+      `SELECT b.id, b.nom, a.nom AS armoire_nom, s.nom AS salle_nom
        FROM boites b
        JOIN armoires a ON b.armoire_id = a.id
        JOIN salles s ON a.salle_id = s.id
@@ -53,7 +53,7 @@ router.get('/', auth, async (req, res) => {
       orgParam
     );
     for (const b of boites) {
-      const nom = b.nom || b.code_boite;
+      const nom = b.nom || 'Boîte sans nom';
       rows.push({
         type: 'Boîte',
         id: b.id,
@@ -64,7 +64,7 @@ router.get('/', auth, async (req, res) => {
 
     const [dossiers] = await db.query(
       `SELECT d.id, d.titre, s.nom AS salle_nom, a.nom AS armoire_nom,
-              b.nom AS boite_nom, b.code_boite
+              b.nom AS boite_nom
        FROM dossiers d
        JOIN boites b ON d.boite_id = b.id
        JOIN armoires a ON b.armoire_id = a.id
@@ -74,7 +74,7 @@ router.get('/', auth, async (req, res) => {
       orgParam
     );
     for (const d of dossiers) {
-      const boite = d.boite_nom || d.code_boite;
+      const boite = d.boite_nom || 'Boîte sans nom';
       rows.push({
         type: 'Dossier',
         id: d.id,
@@ -86,7 +86,7 @@ router.get('/', auth, async (req, res) => {
 
     const [fichiers] = await db.query(
       `SELECT f.id, f.titre, f.nom_original, f.dossier_id, d.titre AS dossier_titre,
-              s.nom AS salle_nom, a.nom AS armoire_nom, b.nom AS boite_nom, b.code_boite
+              s.nom AS salle_nom, a.nom AS armoire_nom, b.nom AS boite_nom
        FROM fichiers f
        JOIN dossiers d ON f.dossier_id = d.id
        JOIN boites b ON d.boite_id = b.id
@@ -97,7 +97,7 @@ router.get('/', auth, async (req, res) => {
       orgParam
     );
     for (const f of fichiers) {
-      const boite = f.boite_nom || f.code_boite;
+      const boite = f.boite_nom || 'Boîte sans nom';
       rows.push({
         type: 'Fichier',
         id: f.id,

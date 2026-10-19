@@ -167,7 +167,7 @@ router.get('/:id/contenu', auth, async (req, res) => {
     const [boites] = await db.query(
       `SELECT b.*,
         (SELECT COUNT(*) FROM dossiers WHERE boite_id = b.id) as nb_dossiers
-       FROM boites b WHERE b.armoire_id = ? AND b.actif = 1 ORDER BY b.code_boite`,
+       FROM boites b WHERE b.armoire_id = ? AND b.actif = 1 ORDER BY b.nom`,
       [req.params.id]
     );
     res.json(boites);

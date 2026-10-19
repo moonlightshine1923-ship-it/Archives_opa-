@@ -3,19 +3,19 @@
    ===================================================== */
 
 :root {
-  --primary: #1e40af;
-  --primary-light: #3b82f6;
-  --primary-dark: #1e3a8a;
-  --secondary: #64748b;
-  --success: #059669;
-  --warning: #d97706;
-  --danger: #dc2626;
-  --info: #0891b2;
-  --dark: #1e293b;
-  --light: #f1f5f9;
+  --primary: #c9a227;
+  --primary-light: #e6c86e;
+  --primary-dark: #8a6d1b;
+  --secondary: #6b6b6b;
+  --success: #2e7d32;
+  --warning: #b8860b;
+  --danger: #b91c1c;
+  --info: #c9a227;
+  --dark: #111111;
+  --light: #f5f2ea;
   --white: #ffffff;
-  --border: #e2e8f0;
-  --bg: #f8fafc;
+  --border: #e5e0d5;
+  --bg: #faf8f3;
   --sidebar-width: 260px;
   --header-height: 60px;
   --shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -108,7 +108,7 @@ a:hover { color: var(--primary-dark); }
 .form-group textarea:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.12);
 }
 
 .form-group textarea {
@@ -255,7 +255,7 @@ a:hover { color: var(--primary-dark); }
 }
 
 .sidebar-nav .nav-item.active {
-  background: rgba(59, 130, 246, 0.15);
+  background: rgba(201, 162, 39, 0.18);
   color: var(--primary-light);
   border-left-color: var(--primary-light);
 }
@@ -463,7 +463,7 @@ a:hover { color: var(--primary-dark); }
   font-size: 24px;
 }
 
-.stat-card .stat-icon.blue { background: rgba(59, 130, 246, 0.1); }
+.stat-card .stat-icon.blue { background: rgba(201, 162, 39, 0.12); }
 .stat-card .stat-icon.green { background: rgba(5, 150, 105, 0.1); }
 .stat-card .stat-icon.orange { background: rgba(217, 119, 6, 0.1); }
 .stat-card .stat-icon.red { background: rgba(220, 38, 38, 0.1); }
@@ -534,7 +534,7 @@ table th {
 }
 
 table tr:hover td {
-  background: rgba(59, 130, 246, 0.03);
+  background: rgba(201, 162, 39, 0.04);
 }
 
 table .actions {
@@ -556,18 +556,18 @@ table .actions {
 .badge-warning { background: rgba(217,119,6,0.1); color: var(--warning); }
 .badge-danger { background: rgba(220,38,38,0.1); color: var(--danger); }
 .badge-info { background: rgba(8,145,178,0.1); color: var(--info); }
-.badge-primary { background: rgba(30,64,175,0.1); color: var(--primary); }
+.badge-primary { background: rgba(201,162,39,0.12); color: var(--primary); }
 .badge-secondary { background: rgba(100,116,139,0.1); color: var(--secondary); }
 
 .badge-Public { background: #dcfce7; color: #166534; }
-.badge-Interne { background: #dbeafe; color: #1e40af; }
+.badge-Interne { background: #f6ead7; color: #8a6d1b; }
 .badge-Confidentiel { background: #fef3c7; color: #92400e; }
 .badge-Secret { background: #fecaca; color: #991b1b; }
 .badge-Très { background: #1e293b; color: #fca5a5; }
 
 .badge-Ouvert { background: #dcfce7; color: #166534; }
 .badge-Fermé { background: #e2e8f0; color: #475569; }
-.badge-Archivé { background: #dbeafe; color: #1e40af; }
+.badge-Archivé { background: #f6ead7; color: #8a6d1b; }
 .badge-Emprunté { background: #fef3c7; color: #92400e; }
 
 /* ===== MODAL ===== */
@@ -849,7 +849,7 @@ table .actions {
 
 .dropzone:hover, .dropzone.dragover {
   border-color: var(--primary);
-  background: rgba(59, 130, 246, 0.05);
+  background: rgba(201, 162, 39, 0.06);
 }
 
 .dropzone .dz-icon {
@@ -1197,91 +1197,6 @@ thead {
   color: #514b42;
   border-top-color: #ded7c8;
 }
-/* =====================================================
-   THÈME CLAIR — ARCHIVES OPA
-   Remplace le thème sombre par une interface claire et douce.
-   ===================================================== */
-:root {
-  --primary: #2878a8;
-  --primary-light: #4ba3d3;
-  --primary-dark: #1d587d;
-  --secondary: #66788a;
-  --success: #258b68;
-  --warning: #c98728;
-  --danger: #c94c52;
-  --info: #2b91a8;
-  --dark: #263746;
-  --light: #f1f6f9;
-  --white: #ffffff;
-  --border: #d9e5ec;
-  --bg: #f6f9fb;
-  --shadow: 0 3px 14px rgba(37, 75, 101, .08);
-  --shadow-lg: 0 18px 45px rgba(37, 75, 101, .16);
-  --radius: 12px;
-}
-
-body { background: var(--bg); color: var(--dark); }
-
-.login-container {
-  background: radial-gradient(circle at 12% 12%, rgba(117, 194, 225, .32), transparent 32%),
-              linear-gradient(135deg, #eaf5fa 0%, #d9edf5 52%, #b9ddea 100%);
-}
-.login-box { border: 1px solid #d4e5ed; border-top: 5px solid var(--primary); }
-.login-box .logo h1 { color: var(--primary-dark); }
-.login-box .logo h1 em { color: var(--primary); }
-
-.sidebar {
-  background: #ffffff;
-  color: var(--dark);
-  border-right: 1px solid var(--border);
-  box-shadow: 3px 0 16px rgba(37,75,101,.05);
-}
-.sidebar-header { border-bottom: 1px solid var(--border); }
-.sidebar-header h2 { color: var(--dark); }
-.sidebar-header h2 span { color: var(--primary); }
-.sidebar-header small { color: var(--secondary); opacity: 1; }
-.sidebar-nav .nav-section { color: var(--secondary); opacity: .8; }
-.sidebar-nav .nav-item { color: #607487; }
-.sidebar-nav .nav-item:hover { background: #eef7fb; color: var(--primary-dark); }
-.sidebar-nav .nav-item.active {
-  background: #e5f3fa;
-  color: var(--primary-dark);
-  border-left-color: var(--primary);
-}
-.sidebar-footer { border-top: 1px solid var(--border); }
-.sidebar-footer .user-name { color: var(--dark); }
-.sidebar-footer .user-role { color: var(--secondary); opacity: 1; }
-.sidebar-footer .user-avatar { background: var(--primary); color: white; }
-.sidebar-footer button { color: var(--secondary) !important; }
-
-.header { background: rgba(255,255,255,.96); }
-.header-left h1 { color: var(--dark); }
-.header-search input { background: var(--light); }
-.card, .stat-card, .filters-bar, .file-item, .explorer-item { box-shadow: var(--shadow); }
-.card-footer { background: #f5f9fb; }
-table th { background: #eaf4f8; color: var(--primary-dark); }
-table tr:hover td { background: #f2f9fc; }
-
-.btn-primary { background: var(--primary); box-shadow: 0 4px 10px rgba(40,120,168,.2); }
-.btn-primary:hover { background: var(--primary-dark); }
-.btn-outline { color: var(--dark); }
-.btn-outline:hover { background: #edf6fa; }
-
-.modal-overlay { background: rgba(30, 55, 70, .38); }
-.modal-close { background: var(--light); }
-.dropzone { background: #f5fafc; }
-.dropzone:hover, .dropzone.dragover { background: #eaf6fb; }
-.location-path, .chart-bar-item .bar-track { background: var(--light); }
-.hierarchie-fichier { background: #eef8fb; border-left-color: var(--primary); }
-.niveau-categorie { color: var(--primary-dark); }
-.niveau-dossier { color: #326b9b; }
-.niveau-fichier { color: #ad741d; }
-.emplacement-fichier { color: var(--secondary); border-top-color: var(--border); }
-
-@media (max-width: 768px) {
-  .sidebar { box-shadow: 8px 0 22px rgba(37,75,101,.15); }
-}
-
 
 /* Interface mono-organisation : OPA uniquement.
    organisation_id reste conservé en base pour compatibilité. */
@@ -1349,3 +1264,23 @@ table tr:hover td { background: #f2f9fc; }
 /* Évite le double œil : masque l'icône native "reveal" d'Edge/IE */
 .password-field input::-ms-reveal,
 .password-field input::-ms-clear { display: none; }
+
+/* ===== LOGO OPA ===== */
+.login-box .logo .logo-img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 4px 12px rgba(201,162,39,0.25));
+}
+.sidebar-header .sidebar-logo {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  border-radius: 8px;
+  background:transparent;
+  padding: 0%;
+}
+.sidebar-header h2 span {
+  color: var(--primary-light);
+}

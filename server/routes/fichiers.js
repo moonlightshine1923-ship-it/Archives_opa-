@@ -7,6 +7,7 @@ const auth = require('../middleware/auth');
 const roleCheck = require('../middleware/role');
 const uploadMiddleware = require('../middleware/upload');
 const { logAudit, ACTIONS } = require('../utils/audit');
+const fixMojibake = require('../utils/encoding');
 
 const UPLOAD_DIR = path.join(__dirname, '../../public/uploads');
 
@@ -83,6 +84,7 @@ router.get('/:id', auth, async (req, res) => {
         c.nom AS categorie_nom,
 
         b.code_boite,
+        b.nom AS boite_nom,
         a.code_armoire,
         a.nom AS armoire_nom,
         a.emplacement_physique,
@@ -398,7 +400,7 @@ router.get('/:id/download', auth, async (req, res) => {
       ip: req.ip, userAgent: req.get('User-Agent')
     });
 
-    res.download(fichier.chemin, fichier.nom_original);
+    res.download(fichier.chemin, fixMojibake(fichier.nom_original || 'fichier'));
   } catch (error) {
     res.status(500).json({ error: 'Erreur serveur.' });
   }
@@ -417,7 +419,9 @@ router.get('/:id/preview', auth, async (req, res) => {
 
     res.setHeader('Content-Type', fichier.type_mime);
     if (fichier.extension === 'pdf') {
-      res.setHeader('Content-Disposition', `inline; filename="${fichier.nom_original}"`);
+      const nomOriginal = fixMojibake(fichier.nom_original || 'fichier.pdf');
+      const nomSecours = nomOriginal.replace(/[^\x20-\x7E]/g, '_').replace(/[\\";]/g, '_');
+      res.setHeader('Content-Disposition', `inline; filename="${nomSecours}"; filename*=UTF-8''${encodeURIComponent(nomOriginal)}`);
     }
     fs.createReadStream(fichier.chemin).pipe(res);
   } catch (error) {

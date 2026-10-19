@@ -1,10 +1,39 @@
 /**
- * Archives OPA - Application principale (v5.0)
+ * Archives Dépêche - Application principale (v5.0)
  */
 
 let currentUser = null;
 let currentPage = 'dashboard';
 let archivesPath = [];
+
+// Répare les noms de fichiers déjà stockés avec les accents UTF-8 mal décodés.
+function fixMojibakeText(value) {
+  const text = String(value ?? '');
+  return text.replace(/(?:Ã[\u0080-\u00BF]|Â[\u0080-\u00BF])+/g, sequence => {
+    try {
+      const bytes = Uint8Array.from(Array.from(sequence, character => character.charCodeAt(0)));
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch (_) {
+      return sequence;
+    }
+  });
+}
+
+// Retourne l’organisation de l’utilisateur connecté, ou Dépêche pour un Super Admin.
+async function getDefaultOrganisationId() {
+  const userOrgId = Number(currentUser && currentUser.organisation_id);
+  if (Number.isInteger(userOrgId) && userOrgId > 0) return userOrgId;
+
+  const organisations = await API.getOrganisations();
+  if (!Array.isArray(organisations) || !organisations.length) {
+    throw new Error('Aucune organisation n’est configurée dans la base.');
+  }
+  const normaliser = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const depeche = organisations.find(org =>
+    normaliser(`${org.code || ''} ${org.nom || ''}`).includes('depeche')
+  );
+  return Number((depeche || organisations[0]).id);
+}
 
 // ===== HELPERS RÔLES =====
 function canModify() {
@@ -172,7 +201,7 @@ function formatDateTime(d) { return d ? new Date(d).toLocaleDateString('fr-FR',{
 function formatSize(b) { if(!b)return '0 B'; const k=1024,s=['B','KB','MB','GB'],i=Math.floor(Math.log(b)/Math.log(k)); return parseFloat((b/Math.pow(k,i)).toFixed(1))+' '+s[i]; }
 function getFileIcon(ext) { return {pdf:'📕',doc:'📘',docx:'📘',xls:'📗',xlsx:'📗',ppt:'📙',pptx:'📙',jpg:'🖼️',jpeg:'🖼️',png:'🖼️',zip:'🗜️'}[ext]||'📄'; }
 function getConfidentialiteBadge(l) { return `<span class="badge badge-${l.split(' ')[0]}">${l}</span>`; }
-function escapeHtml(t) { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+function escapeHtml(t) { const d=document.createElement('div'); d.textContent=fixMojibakeText(t ?? ''); return d.innerHTML; }
 
 // ===== DASHBOARD =====
 async function loadDashboard() {
@@ -280,17 +309,17 @@ async function exploreSalle(id,name) {
       <div class="item-count">${a.nb_boites||0} boîtes</div>
     </div>`).join('') : '<div class="empty-state"><div class="empty-icon">🗄️</div><h3>Aucune armoire</h3></div>';
 }
-async function exploreArmoire(id,code) {
-  archivesPath.push({type:'armoire',id,name:code});
+async function exploreArmoire(id,name) {
+  archivesPath.push({type:'armoire',id,name});
   const boites=await API.getArmoireContenu(id); updateBreadcrumb();
   document.getElementById('explorerGrid').innerHTML = boites.length ? boites.map(b => `
-    <div class="explorer-item" onclick="exploreBoite(${b.id},'${escapeHtml(b.code_boite)}')">
-      <div class="item-icon">📦</div><div class="item-name">${escapeHtml(b.code_boite)} - ${escapeHtml(b.nom)}</div>
+    <div class="explorer-item" onclick="exploreBoite(${b.id},'${escapeHtml(b.nom)}')">
+      <div class="item-icon">📦</div><div class="item-name">${escapeHtml(b.nom)}</div>
       <div class="item-count">${b.nb_dossiers||0} dossiers</div>
     </div>`).join('') : '<div class="empty-state"><div class="empty-icon">📦</div><h3>Aucune boîte</h3></div>';
 }
-async function exploreBoite(id,code) {
-  archivesPath.push({type:'boite',id,name:code});
+async function exploreBoite(id,name) {
+  archivesPath.push({type:'boite',id,name});
   const dossiers=await API.getDossiers(`boite_id=${id}`); updateBreadcrumb();
   document.getElementById('explorerGrid').innerHTML = dossiers.length ? dossiers.map(d => `
     <div class="explorer-item" onclick="viewDossier(${d.id})">
@@ -435,17 +464,17 @@ async function loadBoites() {
       <div style="display:flex;justify-content:space-between;margin-bottom:20px"><div></div>
         ${canModify()?'<button class="btn btn-primary" onclick="showAddBoiteModal()">+ Ajouter une boîte</button>':''}</div>
       <div class="card"><div class="card-body"><div class="table-container"><table>
-        <thead><tr><th>Code</th><th>Nom</th><th>Armoire</th><th>Salle</th><th>Dossiers</th>${canModify()?'<th>Actions</th>':''}</tr></thead>
+        <thead><tr><th>Nom de la boîte</th><th>Armoire</th><th>Salle</th><th>Dossiers</th>${canModify()?'<th>Actions</th>':''}</tr></thead>
         <tbody>${boites.length ? boites.map(b=>`<tr>
-          <td><strong>${escapeHtml(b.code_boite)}</strong></td><td>${escapeHtml(b.nom)}</td><td>${escapeHtml(b.armoire_nom||'')}</td>
+          <td><strong>${escapeHtml(b.nom)}</strong></td><td>${escapeHtml(b.armoire_nom||'')}</td>
           <td>${escapeHtml(b.salle_nom)}</td><td>${b.nb_dossiers||0}</td>
           ${canModify()?`<td class="actions">
             <button class="btn btn-sm btn-outline" onclick="viewBoiteDossiers(${b.id})">👁️</button>
             <button class="btn btn-sm btn-outline" onclick="showEditBoiteModal(${b.id})">✏️</button>
             <button class="btn btn-sm btn-info" onclick="showMoveBoiteModal(${b.id})">↗️</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteBoite(${b.id},'${escapeHtml(b.code_boite)}')">🗑️</button>
-          </td>`:`<td><button class="btn btn-sm btn-outline" onclick="viewBoiteDossiers(${b.id})">👁️</button></td>`}
-        </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:40px">Aucune boîte</td></tr>'}</tbody>
+            <button class="btn btn-sm btn-danger" onclick="deleteBoite(${b.id},'${escapeHtml(b.nom)}')">🗑️</button>
+          </td>`:''}
+        </tr>`).join('') : `<tr><td colspan="${canModify()?5:4}" style="text-align:center;padding:40px">Aucune boîte</td></tr>`}</tbody>
       </table></div></div></div>`;
   } catch(e) { c.innerHTML=`<div class="empty-state"><p>${e.message}</p></div>`; }
 }
@@ -453,29 +482,26 @@ async function showAddBoiteModal() {
   const armoires=await API.getArmoires();
   openModal('Ajouter une boîte', `
     <div class="form-group"><label>Armoire *</label><select id="boiteArmoire"><option value="">Sélectionner...</option>${armoires.map(a=>`<option value="${a.id}">${escapeHtml(a.salle_nom)} › ${escapeHtml(a.nom)}</option>`).join('')}</select></div>
-    <div class="form-group"><label>Code boîte *</label><input id="boiteCode" placeholder="B001"></div>
-    <div class="form-group"><label>Nom *</label><input id="boiteNom" placeholder="Boîte B001"></div>
+    <div class="form-group"><label>Nom de la boîte *</label><input id="boiteNom" placeholder="Ex. Archives comptables 2026"></div>
     <div class="form-group"><label>Description</label><textarea id="boiteDesc"></textarea></div>
   `, `<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitAddBoite()">Créer</button>`);
 }
 async function submitAddBoite() {
   const armoire_id=document.getElementById('boiteArmoire').value;
-  const code_boite=document.getElementById('boiteCode').value.trim();
   const nom=document.getElementById('boiteNom').value.trim();
-  if(!armoire_id||!code_boite||!nom){showToast('Armoire, code et nom requis','error');return;}
-  try { await API.createBoite({armoire_id,code_boite,nom,description:document.getElementById('boiteDesc').value}); closeModal(); showToast('Boîte créée'); loadBoites(); }
+  if(!armoire_id||!nom){showToast('Armoire et nom de la boîte requis','error');return;}
+  try { await API.createBoite({armoire_id,nom,description:document.getElementById('boiteDesc').value}); closeModal(); showToast('Boîte créée'); loadBoites(); }
   catch(e) { showToast(e.message,'error'); }
 }
 async function showEditBoiteModal(id) {
   const boite=await API.getBoite(id);
   openModal('Modifier la boîte', `
-    <div class="form-group"><label>Code</label><input id="boiteCode" value="${escapeHtml(boite.code_boite)}"></div>
-    <div class="form-group"><label>Nom</label><input id="boiteNom" value="${escapeHtml(boite.nom)}"></div>
+    <div class="form-group"><label>Nom de la boîte *</label><input id="boiteNom" value="${escapeHtml(boite.nom)}"></div>
     <div class="form-group"><label>Description</label><textarea id="boiteDesc">${escapeHtml(boite.description||'')}</textarea></div>
   `, `<button class="btn btn-secondary" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="submitEditBoite(${id})">Enregistrer</button>`);
 }
 async function submitEditBoite(id) {
-  try { await API.updateBoite(id,{code_boite:document.getElementById('boiteCode').value,nom:document.getElementById('boiteNom').value,description:document.getElementById('boiteDesc').value}); closeModal(); showToast('Boîte modifiée'); loadBoites(); }
+  try { await API.updateBoite(id,{nom:document.getElementById('boiteNom').value,description:document.getElementById('boiteDesc').value}); closeModal(); showToast('Boîte modifiée'); loadBoites(); }
   catch(e) { showToast(e.message,'error'); }
 }
 async function showMoveBoiteModal(id) {
@@ -488,8 +514,8 @@ async function submitMoveBoite(id) {
   try { await API.moveBoite(id,document.getElementById('moveBoiteArmoire').value); closeModal(); showToast('Boîte déplacée'); loadBoites(); }
   catch(e) { showToast(e.message,'error'); }
 }
-async function deleteBoite(id,code) {
-  if(!confirm(`Supprimer la boîte "${code}" ? Tous les dossiers contenus seront supprimés.`)) return;
+async function deleteBoite(id,name) {
+  if(!confirm(`Supprimer la boîte "${name}" ? Tous les dossiers contenus seront supprimés.`)) return;
   try { await API.deleteBoite(id); showToast('Boîte supprimée'); loadBoites(); }
   catch(e) { showToast(e.message,'error'); }
 }
@@ -524,7 +550,7 @@ function renderDossiersList(dossiers) {
     <tbody>${dossiers.length ? dossiers.map(d=>`<tr>
       <td>${escapeHtml(d.titre)}</td>
       <td style="white-space:nowrap">${escapeHtml(d.categorie_nom||'-')}</td>
-      <td style="white-space:nowrap"><small>${escapeHtml(d.salle_nom)} › ${escapeHtml(d.armoire_nom||'')} › ${escapeHtml(d.boite_nom||d.code_boite)}</small></td>
+      <td style="white-space:nowrap"><small>${escapeHtml(d.salle_nom)} › ${escapeHtml(d.armoire_nom||'')} › ${escapeHtml(d.boite_nom||'Boîte sans nom')}</small></td>
       <td style="white-space:nowrap">${formatDate(d.date_creation)}</td>
       ${canModify()?`<td style="white-space:nowrap">
         <button class="btn btn-sm btn-outline" onclick="viewDossier(${d.id})" title="Voir">👁️</button>
@@ -603,11 +629,11 @@ async function viewDossier(id) {
               <div class="location-path" style="margin-bottom:12px">
                 <span>${escapeHtml(dossier.salle_nom)}</span>
                 <span class="separator">›</span><span>${escapeHtml(dossier.armoire_nom||'')}</span>
-                <span class="separator">›</span><span>${escapeHtml(dossier.code_boite)}</span>
+                <span class="separator">›</span><span>${escapeHtml(dossier.boite_nom||'Boîte sans nom')}</span>
                 <span class="separator">›</span><span class="current">${escapeHtml(dossier.titre)}</span>
               </div>
               <p style="font-size:12px;color:var(--secondary)">Emplacement complet</p>
-              <p style="font-size:13px;font-weight:600">${escapeHtml(dossier.salle_nom)} › ${escapeHtml(dossier.armoire_nom||'')} › ${escapeHtml(dossier.code_boite)} › ${escapeHtml(dossier.titre)}</p>
+              <p style="font-size:13px;font-weight:600">${escapeHtml(dossier.salle_nom)} › ${escapeHtml(dossier.armoire_nom||'')} › ${escapeHtml(dossier.boite_nom||'Boîte sans nom')} › ${escapeHtml(dossier.titre)}</p>
             </div>
           </div>
         </div>
@@ -637,11 +663,7 @@ async function submitAddDossier() {
   if(!boite_id){showToast('Boîte requise','error');return;}
   if(!titre){showToast('Titre requis','error');return;}
   try {
-    let organisation_id = currentUser && currentUser.organisation_id ? currentUser.organisation_id : null;
-    if(!organisation_id){
-      const orgs = await API.getOrganisations();
-      organisation_id = orgs && orgs[0] ? orgs[0].id : 1;
-    }
+    const organisation_id = await getDefaultOrganisationId();
     const result=await API.createDossier({
       organisation_id:parseInt(organisation_id), boite_id:parseInt(boite_id), titre,
       description:document.getElementById('dossDesc').value,
@@ -774,9 +796,15 @@ async function downloadFichier(id) {
     const contentDisposition = response.headers.get('content-disposition');
     let filename = 'fichier';
     if (contentDisposition) {
-      const match = contentDisposition.match(/filename="?(.+?)"?$/);
-      if (match) filename = match[1];
+      const encodedName = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+      const plainName = contentDisposition.match(/filename="?([^;"]+)"?/i);
+      if (encodedName) {
+        try { filename = decodeURIComponent(encodedName[1]); } catch (_) { filename = encodedName[1]; }
+      } else if (plainName) {
+        filename = plainName[1];
+      }
     }
+    filename = fixMojibakeText(filename);
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = filename; a.click();
@@ -784,16 +812,117 @@ async function downloadFichier(id) {
   } catch(e) { showToast('Erreur: ' + e.message, 'error'); }
 }
 
+async function extraireTexteDocx(blob) {
+  if (!('DecompressionStream' in window)) {
+    throw new Error('Aperçu DOCX indisponible dans ce navigateur. Téléchargez le document pour l’ouvrir.');
+  }
+
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const view = new DataView(buffer);
+  const signatureFin = 0x06054b50;
+  let fin = -1;
+
+  // Recherche de la fin du répertoire ZIP (DOCX est une archive ZIP).
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 65557); i--) {
+    if (view.getUint32(i, true) === signatureFin) { fin = i; break; }
+  }
+  if (fin < 0) throw new Error('Document DOCX invalide.');
+
+  const nombreEntrees = view.getUint16(fin + 10, true);
+  const positionRepertoire = view.getUint32(fin + 16, true);
+  let position = positionRepertoire;
+  let donnees = null;
+  let methode = -1;
+  let tailleCompressee = 0;
+  let positionLocale = 0;
+
+  for (let i = 0; i < nombreEntrees; i++) {
+    if (view.getUint32(position, true) !== 0x02014b50) break;
+    const tailleNom = view.getUint16(position + 28, true);
+    const tailleExtra = view.getUint16(position + 30, true);
+    const tailleCommentaire = view.getUint16(position + 32, true);
+    const nom = new TextDecoder().decode(bytes.subarray(position + 46, position + 46 + tailleNom));
+
+    if (nom === 'word/document.xml') {
+      methode = view.getUint16(position + 10, true);
+      tailleCompressee = view.getUint32(position + 20, true);
+      positionLocale = view.getUint32(position + 42, true);
+      break;
+    }
+    position += 46 + tailleNom + tailleExtra + tailleCommentaire;
+  }
+
+  if (methode < 0) throw new Error('Le contenu Word du document est introuvable.');
+  const tailleNomLocal = view.getUint16(positionLocale + 26, true);
+  const tailleExtraLocale = view.getUint16(positionLocale + 28, true);
+  const debutDonnees = positionLocale + 30 + tailleNomLocal + tailleExtraLocale;
+  donnees = bytes.slice(debutDonnees, debutDonnees + tailleCompressee);
+
+  if (methode === 0) return new TextDecoder('utf-8').decode(donnees);
+  if (methode !== 8) throw new Error('Compression DOCX non prise en charge.');
+
+  const flux = new Blob([donnees]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  const xml = await new Response(flux).text();
+  return xml;
+}
+
+function creerPageApercuDocx(xml) {
+  const documentXml = new DOMParser().parseFromString(xml, 'application/xml');
+  if (documentXml.getElementsByTagName('parsererror').length) {
+    throw new Error('Impossible de lire le contenu de ce document Word.');
+  }
+
+  const namespace = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const paragraphes = Array.from(documentXml.getElementsByTagNameNS(namespace, 'p'));
+  const texteDe = (noeud) => Array.from(noeud.childNodes).map((enfant) => {
+    if (enfant.nodeType !== 1) return '';
+    if (enfant.localName === 't' || enfant.localName === 'delText') return enfant.textContent;
+    if (enfant.localName === 'tab') return '\t';
+    if (enfant.localName === 'br' || enfant.localName === 'cr') return '\n';
+    return texteDe(enfant);
+  }).join('');
+
+  const contenu = paragraphes.map((p) => {
+    const texte = texteDe(p);
+    return `<p>${escapeHtml(texte).replace(/\n/g, '<br>') || '&nbsp;'}</p>`;
+  }).join('');
+
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aperçu du document Word</title><style>body{margin:0;background:#eef3f7;color:#263746;font:16px/1.75 Georgia,serif}.page{max-width:850px;margin:32px auto;padding:48px 64px;background:#fff;box-shadow:0 8px 32px #24374620;min-height:80vh}header{font:13px/1.4 Arial,sans-serif;color:#66788a;border-bottom:1px solid #dce5eb;padding-bottom:14px;margin-bottom:28px}p{white-space:pre-wrap;margin:0 0 12px}@media(max-width:700px){.page{margin:0;padding:24px}}</style></head><body><main class="page"><header>Aperçu texte du document Word (.docx)</header>${contenu || '<p>Le document ne contient pas de texte lisible.</p>'}</main></body></html>`;
+}
+
 async function previewFichier(id) {
+  // Ouvrir la fenêtre dès le clic pour éviter le blocage des pop-ups après fetch.
+  const fenetreApercu = window.open('', '_blank');
+  if (!fenetreApercu) {
+    showToast('Autorisez les fenêtres pop-up pour afficher l’aperçu.', 'error');
+    return;
+  }
+
   try {
+    fenetreApercu.document.title = 'Chargement de l’aperçu…';
     const response = await fetch(`/api/fichiers/${id}/preview`, {
       headers: { 'Authorization': `Bearer ${API.token}` }
     });
     if (!response.ok) throw new Error('Erreur prévisualisation');
+
     const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    window.open(url, '_blank');
-  } catch(e) { showToast('Erreur: ' + e.message, 'error'); }
+    const type = (response.headers.get('content-type') || blob.type || '').toLowerCase();
+    let apercu = blob;
+
+    // Les navigateurs n’affichent pas nativement les fichiers Word : on en extrait le texte sans dépendance externe.
+    if (type.includes('wordprocessingml.document')) {
+      const xml = await extraireTexteDocx(blob);
+      apercu = new Blob([creerPageApercuDocx(xml)], { type: 'text/html;charset=utf-8' });
+    }
+
+    const url = window.URL.createObjectURL(apercu);
+    fenetreApercu.addEventListener('unload', () => window.URL.revokeObjectURL(url), { once: true });
+    fenetreApercu.location.href = url;
+  } catch(e) {
+    fenetreApercu.close();
+    showToast('Erreur: ' + e.message, 'error');
+  }
 }
 
 async function deleteFichier(id,dossierId) {
@@ -825,7 +954,6 @@ async function loadCategories() {
   } catch(e) { c.innerHTML=`<div class="empty-state"><p>${e.message}</p></div>`; }
 }
 function showAddCategorieModal() {
-  const orgId=currentUser.organisation_id;
   openModal('Nouvelle catégorie', `
     <div class="form-group"><label>Nom *</label><input id="catNom" placeholder="Rédaction"></div>
     <div class="form-group"><label>Description</label><textarea id="catDesc"></textarea></div>
@@ -835,7 +963,11 @@ function showAddCategorieModal() {
 async function submitAddCategorie() {
   const nom=document.getElementById('catNom').value.trim();
   if(!nom){showToast('Nom requis','error');return;}
-  try { await API.createCategorie({nom,description:document.getElementById('catDesc').value,organisation_id:1}); closeModal(); showToast('Catégorie créée'); loadCategories(); }
+  try {
+    const organisation_id = await getDefaultOrganisationId();
+    await API.createCategorie({nom, description:document.getElementById('catDesc').value, organisation_id});
+    closeModal(); showToast('Catégorie créée'); loadCategories();
+  }
   catch(e) { showToast(e.message,'error'); }
 }
 function showEditCategorieModal(id,nom,desc) {
@@ -917,7 +1049,7 @@ function filtrerSommaire() {
     ? all.filter(r =>
         (r.titre || '').toLowerCase().includes(q) ||
         (r.emplacement || '').toLowerCase().includes(q) ||
-        (r.nom_original || '').toLowerCase().includes(q)
+        fixMojibakeText(r.nom_original || '').toLowerCase().includes(q)
       )
     : all;
   const body = document.getElementById('sommaireBody');
@@ -992,7 +1124,7 @@ async function executeRecherche() {
         <tbody>${results.map(d=>`<tr>
           <td><span class="badge badge-info">${escapeHtml(d.type||'Dossier')}</span></td>
           <td>${escapeHtml(d.titre)}</td>
-          <td><small>${escapeHtml(d.salle_nom||'')} › ${escapeHtml(d.armoire_nom||'')} › ${escapeHtml(d.boite_nom||d.code_boite||'')}</small></td>
+          <td><small>${escapeHtml(d.salle_nom||'')} › ${escapeHtml(d.armoire_nom||'')} › ${escapeHtml(d.boite_nom||'Boîte sans nom')}</small></td>
           <td><button class="btn btn-sm btn-outline" onclick="${d.type==='Fichier'?`ouvrirDetailsFichier(${d.id})`:`viewDossier(${d.dossier_id||d.id})`}">👁️</button></td>
         </tr>`).join('')}</tbody>
       </table></div></div></div>`;
@@ -1002,15 +1134,32 @@ async function executeRecherche() {
   } catch(e) { showToast(e.message,'error'); }
 }
 async function handleGlobalSearch(event) {
-  if(event.key !== 'Enter') return;
+  if (event.key !== 'Enter') return;
   const q = event.target.value.trim();
-  if(q.length < 2) return;
+  if (q.length < 2) return;
   try {
-    const results = await API.quickSearch(q);
+    const typesAutorises = new Set(['Dossier', 'Fichier', 'Boîte', 'Salle']);
+    const results = (await API.quickSearch(q)).filter(result => typesAutorises.has(result.type));
     const c = document.getElementById('contentArea');
-    c.innerHTML = `<div class="card"><div class="card-header"><h3>Résultats pour « ${escapeHtml(q)} »</h3></div><div class="card-body"><div class="table-container"><table><thead><tr><th>Type</th><th>Nom</th><th>Description</th></tr></thead><tbody>${results.length ? results.map(r => `<tr><td><span class="badge badge-info">${escapeHtml(r.type)}</span></td><td><strong>${escapeHtml(r.nom)}</strong></td><td>${escapeHtml(r.description || '')}</td></tr>`).join('') : '<tr><td colspan="3">Aucun résultat</td></tr>'}</tbody></table></div></div></div>`;
+    const lignes = results.map(result => {
+      const action = result.type === 'Fichier' ? `ouvrirDetailsFichier(${result.id})`
+        : result.type === 'Dossier' ? `viewDossier(${result.id})`
+        : result.type === 'Boîte' ? `viewBoiteDossiers(${result.id})`
+        : `navigateTo('salles')`;
+      return `<tr class="quick-search-result" onclick="${action}">
+        <td><span class="badge badge-info">${escapeHtml(result.type)}</span></td>
+        <td><strong>${escapeHtml(result.nom || '')}</strong></td>
+        <td><small>${escapeHtml(result.emplacement || '')}</small></td>
+        <td>${escapeHtml(result.description || '')}</td>
+      </tr>`;
+    }).join('');
+    c.innerHTML = `<div class="card"><div class="card-header"><h3>Résultats pour « ${escapeHtml(q)} »</h3></div>
+      <div class="card-body"><div class="table-container"><table>
+        <thead><tr><th>Type</th><th>Nom</th><th>Emplacement</th><th>Description</th></tr></thead>
+        <tbody>${lignes || '<tr><td colspan="4" style="text-align:center;padding:30px">Aucun résultat dans les dossiers, fichiers, boîtes ou salles.</td></tr>'}</tbody>
+      </table></div></div></div>`;
     document.getElementById('pageTitle').textContent = 'Résultats de recherche';
-  } catch(e) { showToast(e.message, 'error'); }
+  } catch (e) { showToast(e.message, 'error'); }
 }
 
 // ===== JOURNAL D'AUDIT =====
@@ -1079,7 +1228,7 @@ async function submitAddUser() {
   if (!mot_de_passe) { showToast('Mot de passe requis', 'error'); return; }
 
   try {
-    let organisation_id = currentUser && currentUser.organisation_id ? currentUser.organisation_id : 1;
+    const organisation_id = await getDefaultOrganisationId();
     const result = await API.createUser({ prenom, nom, mot_de_passe, organisation_id });
     closeModal();
     const loginHint = result && result.email ? ` Identifiant : ${result.email}` : '';
@@ -1141,12 +1290,8 @@ async function submitAddSalle(){
   const description=document.getElementById('salleDescription').value;
   if(!nom) return showToast('Le nom de la salle est requis.','error');
   try{
-    let organisation_id = currentUser && currentUser.organisation_id ? currentUser.organisation_id : null;
-    if(!organisation_id){
-      const orgs = await API.getOrganisations();
-      organisation_id = orgs && orgs[0] ? orgs[0].id : 1;
-    }
-    await API.createSalle({organisation_id:parseInt(organisation_id),nom,description});
+    const organisation_id = await getDefaultOrganisationId();
+    await API.createSalle({organisation_id,nom,description});
     closeModal();
     showToast('Salle créée avec succès.');
     loadSalles();

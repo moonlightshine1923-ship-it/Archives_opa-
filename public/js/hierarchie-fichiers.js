@@ -35,7 +35,7 @@ function numeroLettre(nombre) {
 
 function escapeHierarchie(valeur) {
   const div = document.createElement('div');
-  div.textContent = valeur || '';
+  div.textContent = typeof fixMojibakeText === 'function' ? fixMojibakeText(valeur || '') : (valeur || '');
   return div.innerHTML;
 }
 
@@ -68,7 +68,7 @@ async function ouvrirDetailsFichier(id) {
           📍 ${escapeHierarchie(fichier.salle_nom || 'Salle non définie')}
           — ${escapeHierarchie(fichier.armoire_nom || fichier.code_armoire || 'Armoire non définie')}
           ${fichier.emplacement_physique ? ' — ' + escapeHierarchie(fichier.emplacement_physique) : ''}
-          — Boîte ${escapeHierarchie(fichier.code_boite || 'Non définie')}
+          — ${escapeHierarchie(fichier.boite_nom || 'Non définie')}
           — Dossier ${escapeHtml(fichier.dossier_titre || 'Non défini')}
         </div>
       </div>
@@ -91,10 +91,7 @@ async function ouvrirDetailsFichier(id) {
       `
         <button class="btn btn-secondary" onclick="closeModal()">Fermer</button>
         <button class="btn btn-outline" onclick="downloadFichier(${fichier.id})">⬇️ Télécharger</button>
-        ${['pdf', 'jpg', 'jpeg', 'png'].includes(fichier.extension)
-          ? `<button class="btn btn-info" onclick="previewFichier(${fichier.id})">👁️ Prévisualiser</button>`
-          : ''
-        }
+        <button class="btn btn-info" onclick="previewFichier(${fichier.id})" title="Ouvrir l’aperçu dans un nouvel onglet">👁️ Aperçu</button>
         ${canModify()
           ? `<button class="btn btn-primary" onclick="modifierFichierHierarchie(${fichier.id})">✏️ Modifier</button>`
           : ''

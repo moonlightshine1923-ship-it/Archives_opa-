@@ -1,4 +1,5 @@
 .env
+Password root mysql
 server.log
 node_modules/
 public/uploads/

@@ -4,6 +4,7 @@ const db = require('../config/db');
 const auth = require('../middleware/auth');
 const roleCheck = require('../middleware/role');
 const { logAudit, ACTIONS } = require('../utils/audit');
+const crypto = require('crypto');
 
 // ===== LISTER LES BOÎTES =====
 router.get('/', auth, async (req, res) => {
@@ -30,7 +31,7 @@ router.get('/', auth, async (req, res) => {
     if (conditions.length) {
       query += ' WHERE ' + conditions.join(' AND ');
     }
-    query += ' ORDER BY o.nom, s.nom, a.code_armoire, b.code_boite';
+    query += ' ORDER BY o.nom, s.nom, a.code_armoire, b.nom';
 
     const [boites] = await db.query(query, params);
     res.json(boites);
@@ -62,16 +63,18 @@ router.get('/:id', auth, async (req, res) => {
 // ===== CRÉER UNE BOÎTE =====
 router.post('/', auth, roleCheck(80), async (req, res) => {
   try {
-    const { armoire_id, code_boite, nom, description } = req.body;
+    const { armoire_id, nom, description } = req.body;
 
-    if (!armoire_id || !code_boite || !nom) {
-      return res.status(400).json({ error: 'Armoire, code et nom requis.' });
+    if (!armoire_id || !nom || !String(nom).trim()) {
+      return res.status(400).json({ error: 'Armoire et nom de boîte requis.' });
     }
 
+    // Le code reste dans la BDD pour compatibilité, mais n’est plus demandé ni affiché.
+    const code_boite = `INT-${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
     const [result] = await db.query(
       `INSERT INTO boites (armoire_id, code_boite, nom, description)
        VALUES (?, ?, ?, ?)`,
-      [armoire_id, code_boite, nom, description]
+      [armoire_id, code_boite, String(nom).trim(), description || null]
     );
 
     await logAudit({
@@ -83,7 +86,7 @@ router.post('/', auth, roleCheck(80), async (req, res) => {
     res.status(201).json({ id: result.insertId, message: 'Boîte créée avec succès.' });
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') {
-      return res.status(400).json({ error: 'Code boîte déjà existant dans cette armoire.' });
+      return res.status(400).json({ error: 'Impossible de créer la boîte. Réessayez.' });
     }
     res.status(500).json({ error: 'Erreur serveur.' });
   }
@@ -92,11 +95,10 @@ router.post('/', auth, roleCheck(80), async (req, res) => {
 // ===== MODIFIER UNE BOÎTE =====
 router.put('/:id', auth, roleCheck(80), async (req, res) => {
   try {
-    const { code_boite, nom, description, actif } = req.body;
+    const { nom, description, actif } = req.body;
     const updates = [];
     const params = [];
 
-    if (code_boite) { updates.push('code_boite = ?'); params.push(code_boite); }
     if (nom) { updates.push('nom = ?'); params.push(nom); }
     if (description !== undefined) { updates.push('description = ?'); params.push(description); }
     if (actif !== undefined) { updates.push('actif = ?'); params.push(actif); }
